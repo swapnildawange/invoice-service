@@ -1,0 +1,5 @@
+we can get the admin details from auth response such as admin id 
+
+we can get all information related to user based on the userid
+so admin only have to add userid and paid amount
+in that case admin can only edit the paid amount to update user data first we have to update the user table 
