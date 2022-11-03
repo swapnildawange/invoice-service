@@ -56,8 +56,8 @@ func main() {
 // This function will make a connection to the database only once.
 func InitDB(logger log.Logger) (*sql.DB, error) {
 	var err error
+	connStr := "postgres://postgres:password@localhost/invoicing?sslmode=disable"
 
-	connStr := "postgres://postgres:password@localhost/users?sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err

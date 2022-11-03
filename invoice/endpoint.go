@@ -12,16 +12,38 @@ import (
 type Endpoints struct {
 	CreateInvoice endpoint.Endpoint
 	GetInvoice    endpoint.Endpoint
+	ListInvoice   endpoint.Endpoint
 	UpdateInvoice endpoint.Endpoint
 	DeleteInvoice endpoint.Endpoint
+	CreateUser    endpoint.Endpoint
 }
 
 func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 	return Endpoints{
 		CreateInvoice: makeCreateInvoice(logger, bl),
 		GetInvoice:    makeGetInvoice(logger, bl),
+		ListInvoice:   makeListInvoice(logger, bl),
 		UpdateInvoice: makeUpdateInvoice(logger, bl),
 		DeleteInvoice: makeDeleteEndpoint(logger, bl),
+		CreateUser:    makeCreateUser(logger, bl),
+	}
+}
+
+func makeCreateUser(logger log.Logger, bl BL) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		var (
+			req  model.CreateUserRequest
+			user model.User
+		)
+		req = request.(model.CreateUserRequest)
+		if err != nil {
+			return nil, fmt.Errorf("invalid request for create user")
+		}
+		user, err = bl.CreateUser(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return user, nil
 	}
 }
 
@@ -54,6 +76,22 @@ func makeGetInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 			return nil, err
 		}
 		return invoice, nil
+	}
+}
+
+func makeListInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		var (
+			invoices []model.Invoice
+			userId   int
+		)
+
+		userId = request.(int)
+		invoices, err = bl.ListInvoice(ctx, userId)
+		if err != nil {
+			return nil, err
+		}
+		return invoices, nil
 	}
 }
 

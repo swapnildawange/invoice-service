@@ -20,13 +20,15 @@ const (
 	RoleAdmin Role = "admin"
 )
 
-// email , hash , id
-type Admin struct {
-	Id int
-}
-
 type User struct {
-	Id int
+	Id         int       `json:"id"`
+	Email      string    `json:"email"`
+	First_name string    `json:"first_name"`
+	Last_name  string    `json:"last_name"`
+	Password   string    `json:"password"`
+	Role       Role      `json:"role"`
+	CreatedAt  time.Time `json:"created_at"`
+	Updated_at time.Time `json:"updated_at"`
 }
 
 // when the admin craete the invoice it already  have the admin details
@@ -35,18 +37,23 @@ type User struct {
 // respective ids need to add into database
 
 type Invoice struct {
-	Id                 string        `json:"invoice_id"`
-	UserId             int           `json:"user_id"`
-	Paid               float64       `json:"paid"`
-	PaymentInitiatedBy int           `json:"admin_id"`
-	PaymentStatus      PaymentStatus `json:"status"`
-	CreatedAt          time.Time     `json:"created_at"`
-	UpdatedAt          time.Time     `json:"updated_at"`
+	Id            string        `json:"invoice_id"`
+	UserId        int           `json:"user_id"`
+	Paid          float64       `json:"paid"`
+	AdminId       int           `json:"admin_id"`
+	PaymentStatus PaymentStatus `json:"payment_status"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
 }
 
 type CreateInvoiceRequest struct {
-	UserId int     `json:"user_id"`
-	Paid   float64 `json:"paid"`
+	Id            string        `json:"invoice_id"`
+	UserId        int           `json:"user_id"`
+	Paid          float64       `json:"paid"`
+	AdminId       int           `json:"admin_id"`
+	PaymentStatus PaymentStatus `json:"payment_status"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
 }
 
 type GetInvoiceRequest struct {
@@ -55,4 +62,15 @@ type GetInvoiceRequest struct {
 
 type UpdateInvoiceRequest struct {
 	Invoice Invoice `json:"invoice"`
+}
+
+type CreateUserRequest struct {
+	Id        int       `json:"id"`
+	Email     string    `json:"email"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Password  string    `json:"password"`
+	Role      Role      `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"invoice_service/model"
+	"strconv"
 
 	"net/http"
 
@@ -34,6 +35,13 @@ func NewHTTPHandler(logger log.Logger, endpoint Endpoints) *mux.Router {
 		options...,
 	)
 
+	listInvoiceHandler := httptransport.NewServer(
+		endpoint.ListInvoice,
+		decodeListInvoiceReq,
+		encodeResponse,
+		options...,
+	)
+
 	updateInvoiceHandler := httptransport.NewServer(
 		endpoint.UpdateInvoice,
 		decodeUpdateInvoiceReq,
@@ -48,12 +56,20 @@ func NewHTTPHandler(logger log.Logger, endpoint Endpoints) *mux.Router {
 		options...,
 	)
 
+	createUserHandler := httptransport.NewServer(
+		endpoint.CreateUser,
+		decodeCreateUserRequest,
+		encodeResponse,
+		options...,
+	)
+
 	r := mux.NewRouter()
 	r.Methods(http.MethodPost).Path("/create_invoice").Handler(createInvoiceHandler)
-	r.Methods(http.MethodGet).Path("/invoice").Handler(getInvoiceHandler)
+	r.Methods(http.MethodGet).Path("/invoice").Handler(getInvoiceHandler) //need to change
+	r.Methods(http.MethodGet).Path("/invoice/{id}").Handler(listInvoiceHandler)
 	r.Methods(http.MethodPatch).Path("/update_invoice/{id}").Handler(updateInvoiceHandler)
 	r.Methods(http.MethodDelete).Path("/invoice/{id}").Handler(deleteInvoiceHandler)
-
+	r.Methods(http.MethodPost).Path("/create_user").Handler(createUserHandler)
 	return r
 }
 
@@ -63,7 +79,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 }
 
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
-	if err != nil {
+	if err == nil {
 		panic("encodeError with nil error")
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -94,6 +110,19 @@ func decodeGetInvoiceReq(ctx context.Context, req *http.Request) (interface{}, e
 	return request, nil
 }
 
+func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
+	id, ok := mux.Vars(req)["id"]
+	if !ok {
+		return nil, fmt.Errorf("user id not found in url path")
+	}
+	userId, err := strconv.Atoi(id)
+	if err != nil {
+		return userId, err
+	}
+
+	return userId, nil
+}
+
 func decodeDeleteInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
 
 	invoiceId, ok := mux.Vars(req)["id"]
@@ -116,5 +145,13 @@ func decodeUpdateInvoiceReq(ctx context.Context, req *http.Request) (interface{}
 	}
 
 	request.Invoice.Id = invoiceId
+	return request, nil
+}
+
+func decodeCreateUserRequest(ctx context.Context, req *http.Request) (interface{}, error) {
+	var request model.CreateUserRequest
+	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+		return nil, err
+	}
 	return request, nil
 }

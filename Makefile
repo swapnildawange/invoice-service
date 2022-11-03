@@ -10,5 +10,21 @@ stop:
 	docker-compose down
 	@echo "Done!"
 
-run : start
+run : 
 	go run ./cmd/main.go
+
+createdb:
+	docker exec -it invoice_service_postgres_1 createdb --username=postgres --owner=postgres invoicing
+
+opendb:
+	docker exec -it invoice_service_postgres_1 psql -U postgres invoicing
+
+dropdb:
+	docker exec -it invoice_service_postgres_1 dropdb  --username=postgres invoicing
+
+
+migrateup:
+	migrate -path db/migration -database "postgres://postgres:password@localhost/invoicing?sslmode=disable" -verbose up
+
+migratedown:
+	migrate -path db/migration -database "postgres://postgres:password@localhost/invoicing?sslmode=disable" -verbose down

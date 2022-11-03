@@ -1,12 +1,17 @@
 ## invoice-system
  
 
+# Steps to follow :
+
+
+
 `make start` to start postgresql in docker container 
 
-`make run  ` to start the invoice-system on http://localhost:8080
+`make createdb` to create invoice database 
 
-# craete tables
-to create users and invoice table run the query present in psql.sql file
+`make migrateup` to intiate required tables   
+
+`make run  ` to start the invoice-system on http://localhost:8080
 
 # API's
 
