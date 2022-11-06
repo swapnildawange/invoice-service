@@ -34,7 +34,7 @@ func main() {
 	}
 	logger.Log("The database is connected")
 
-	repo := repository.NewRepository(logger, db)
+	repo := repository.NewRepository(db)
 	// initate repository
 
 	// initiate bl
@@ -100,3 +100,4 @@ func InitDB(logger log.Logger) (*sql.DB, error) {
 // 	}
 // 	return nil
 // }
+

@@ -20,15 +20,20 @@ const (
 	RoleAdmin Role = "admin"
 )
 
+var MapRoleToName = map[int]Role{
+	1: RoleAdmin,
+	2: RoleUser,
+}
+
 type User struct {
-	Id         int       `json:"id"`
-	Email      string    `json:"email"`
-	First_name string    `json:"first_name"`
-	Last_name  string    `json:"last_name"`
-	Password   string    `json:"password"`
-	Role       Role      `json:"role"`
-	CreatedAt  time.Time `json:"created_at"`
-	Updated_at time.Time `json:"updated_at"`
+	Id        int       `json:"id"`
+	Email     string    `json:"email"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Password  string    `json:"password,omitempty"`
+	Role      int       `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // when the admin craete the invoice it already  have the admin details
@@ -70,7 +75,7 @@ type CreateUserRequest struct {
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
 	Password  string    `json:"password"`
-	Role      Role      `json:"role"`
+	Role      int       `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

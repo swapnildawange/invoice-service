@@ -2,10 +2,12 @@ package invoice
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"invoice_service/invoice/repository"
 	"invoice_service/model"
+	"invoice_service/security"
 
 	"github.com/go-kit/kit/log"
 	"github.com/google/uuid"
@@ -18,6 +20,7 @@ type BL interface {
 	UpdateInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) (model.Invoice, error)
 	DeleteInvoice(ctx context.Context, invoiceId string) error
 	CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (model.User, error)
+	ListUsers(ctx context.Context) ([]model.User, error)
 }
 
 type bl struct {
@@ -42,10 +45,11 @@ func (bl *bl) CreateInvoice(ctx context.Context, createInvoiceReq model.CreateIn
 	createInvoiceReq.Id = uuid.NewString()
 	createInvoiceReq.CreatedAt = time.Now()
 	createInvoiceReq.UpdatedAt = time.Now()
-	createInvoiceReq.AdminId = 1
-	createInvoiceReq.UserId = 1
-	createInvoiceReq.PaymentStatus = 3
 
+	if createInvoiceReq.AdminId == createInvoiceReq.UserId {
+		bl.logger.Log("invoice", "bl", "CreateInvoice", "User id and admin id cant be same")
+		return invoice, fmt.Errorf("User id and admin id cant be same")
+	}
 	invoice, err = bl.repo.CreateInvoice(ctx, createInvoiceReq)
 	if err != nil {
 		bl.logger.Log("invoice", "bl", "CreateInvoice", "Failed to create invoice", err.Error())
@@ -106,12 +110,34 @@ func (bl *bl) DeleteInvoice(ctx context.Context, invoiceId string) error {
 
 func (bl *bl) CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (model.User, error) {
 
+	// hash password
+	hashedPassword, err := security.HashPassword(createUserReq.Password)
+	if err != nil {
+		bl.logger.Log("CreateUser", "Failed to hash password", err.Error())
+	}
+
 	createUserReq.CreatedAt = time.Now()
 	createUserReq.UpdatedAt = time.Now()
+	createUserReq.Password = hashedPassword
+
 	user, err := bl.repo.CreateUser(ctx, createUserReq)
 	if err != nil {
-		bl.logger.Log(err)
+		bl.logger.Log(err.Error())
 		return user, err
 	}
+	bl.logger.Log("User created successfully")
 	return user, nil
+}
+
+func (bl *bl) ListUsers(ctx context.Context) ([]model.User, error) {
+	var (
+		users []model.User
+		err   error
+	)
+	users, err = bl.repo.ListUsers(ctx)
+	if err != nil {
+		bl.logger.Log("Failed to get list of users", err.Error())
+		return users, err
+	}
+	return users, nil
 }

@@ -16,6 +16,7 @@ type Endpoints struct {
 	UpdateInvoice endpoint.Endpoint
 	DeleteInvoice endpoint.Endpoint
 	CreateUser    endpoint.Endpoint
+	ListUsers     endpoint.Endpoint
 }
 
 func NewEndpoints(logger log.Logger, bl BL) Endpoints {
@@ -26,6 +27,7 @@ func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 		UpdateInvoice: makeUpdateInvoice(logger, bl),
 		DeleteInvoice: makeDeleteEndpoint(logger, bl),
 		CreateUser:    makeCreateUser(logger, bl),
+		ListUsers:     makeListUsers(logger, bl),
 	}
 }
 
@@ -123,5 +125,17 @@ func makeDeleteEndpoint(logger log.Logger, bl BL) endpoint.Endpoint {
 			return nil, err
 		}
 		return fmt.Sprintf("Invoice deleted"), nil
+	}
+}
+
+func makeListUsers(logger log.Logger, bl BL) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		response, nil := bl.ListUsers(ctx)
+		if err != nil {
+			logger.Log("endpoint", "makeListUsers", "Failed to list users", err.Error())
+			return
+		}
+		return
+
 	}
 }

@@ -63,6 +63,13 @@ func NewHTTPHandler(logger log.Logger, endpoint Endpoints) *mux.Router {
 		options...,
 	)
 
+	listUsersHandler := httptransport.NewServer(
+		endpoint.ListUsers,
+		decodeListUsersReq,
+		encodeResponse,
+		options...,
+	)
+
 	r := mux.NewRouter()
 	r.Methods(http.MethodPost).Path("/create_invoice").Handler(createInvoiceHandler)
 	r.Methods(http.MethodGet).Path("/invoice").Handler(getInvoiceHandler) //need to change
@@ -70,6 +77,8 @@ func NewHTTPHandler(logger log.Logger, endpoint Endpoints) *mux.Router {
 	r.Methods(http.MethodPatch).Path("/update_invoice/{id}").Handler(updateInvoiceHandler)
 	r.Methods(http.MethodDelete).Path("/invoice/{id}").Handler(deleteInvoiceHandler)
 	r.Methods(http.MethodPost).Path("/create_user").Handler(createUserHandler)
+	r.Methods(http.MethodGet).Path("/users").Handler(listUsersHandler)
+
 	return r
 }
 
@@ -85,9 +94,15 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	w.WriteHeader(http.StatusInternalServerError)
+	
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
+}
+
+func decodeListUsersReq(ctx context.Context, req *http.Request) (interface{}, error) {
+
+	return "", nil
 }
 
 func decodeCreateInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
