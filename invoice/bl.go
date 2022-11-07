@@ -7,7 +7,6 @@ import (
 
 	"invoice_service/invoice/repository"
 	"invoice_service/model"
-	"invoice_service/security"
 
 	"github.com/go-kit/kit/log"
 	"github.com/google/uuid"
@@ -19,8 +18,6 @@ type BL interface {
 	ListInvoice(ctx context.Context, userId int) ([]model.Invoice, error)
 	UpdateInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) (model.Invoice, error)
 	DeleteInvoice(ctx context.Context, invoiceId string) error
-	CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (model.User, error)
-	ListUsers(ctx context.Context) ([]model.User, error)
 }
 
 type bl struct {
@@ -50,24 +47,25 @@ func (bl *bl) CreateInvoice(ctx context.Context, createInvoiceReq model.CreateIn
 		bl.logger.Log("invoice", "bl", "CreateInvoice", "User id and admin id cant be same")
 		return invoice, fmt.Errorf("User id and admin id cant be same")
 	}
+
 	invoice, err = bl.repo.CreateInvoice(ctx, createInvoiceReq)
 	if err != nil {
 		bl.logger.Log("invoice", "bl", "CreateInvoice", "Failed to create invoice", err.Error())
-		return invoice, err
+		return invoice, fmt.Errorf("Failed to create invoice", err.Error())
 	}
 
 	return invoice, nil
 }
 
 func (bl *bl) GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error) {
-	var invoice = model.Invoice{
-		Id:            "temp_invoice_id",
-		UserId:        1,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
-		Paid:          100,
-		AdminId:       2,
-		PaymentStatus: model.PaymentStatus(model.Initiate),
+	var (
+		invoice model.Invoice
+		err     error
+	)
+	invoice, err = bl.repo.GetInvoice(ctx, invoiceId)
+	if err != nil {
+		bl.logger.Log("Failed to get invoice", err.Error())
+		return invoice, err
 	}
 	bl.logger.Log("Successfully get invoice")
 	return invoice, nil
@@ -90,54 +88,30 @@ func (bl *bl) ListInvoice(ctx context.Context, userId int) ([]model.Invoice, err
 }
 
 func (bl *bl) UpdateInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) (model.Invoice, error) {
-	// invoice
-	var invoice = model.Invoice{
-		UserId:        updateInvoiceReq.Invoice.UserId,
-		Id:            updateInvoiceReq.Invoice.Id,
-		CreatedAt:     updateInvoiceReq.Invoice.CreatedAt,
-		UpdatedAt:     time.Now(),
-		Paid:          updateInvoiceReq.Invoice.Paid,
-		AdminId:       updateInvoiceReq.Invoice.AdminId,
-		PaymentStatus: model.PaymentStatus(model.Initiate),
+	var (
+		invoice model.Invoice
+		err     error
+	)
+	err = bl.repo.EditInvoice(ctx, updateInvoiceReq)
+	if err != nil {
+		bl.logger.Log("Failed to update invoice", err.Error())
+		return invoice, err
 	}
-	bl.logger.Log("Successfully get invoice")
+
+	invoice, err = bl.repo.GetInvoice(ctx, updateInvoiceReq.Id)
+	if err != nil {
+		bl.logger.Log("Failed to get updated invoice", err.Error())
+		return invoice, err
+	}
+	bl.logger.Log("Successfully updated invoice")
 	return invoice, nil
 }
 
 func (bl *bl) DeleteInvoice(ctx context.Context, invoiceId string) error {
+	err := bl.repo.DeleteInvoice(ctx, invoiceId)
+	if err != nil {
+		bl.logger.Log("Fialed to delete invoice")
+		return err
+	}
 	return nil
-}
-
-func (bl *bl) CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (model.User, error) {
-
-	// hash password
-	hashedPassword, err := security.HashPassword(createUserReq.Password)
-	if err != nil {
-		bl.logger.Log("CreateUser", "Failed to hash password", err.Error())
-	}
-
-	createUserReq.CreatedAt = time.Now()
-	createUserReq.UpdatedAt = time.Now()
-	createUserReq.Password = hashedPassword
-
-	user, err := bl.repo.CreateUser(ctx, createUserReq)
-	if err != nil {
-		bl.logger.Log(err.Error())
-		return user, err
-	}
-	bl.logger.Log("User created successfully")
-	return user, nil
-}
-
-func (bl *bl) ListUsers(ctx context.Context) ([]model.User, error) {
-	var (
-		users []model.User
-		err   error
-	)
-	users, err = bl.repo.ListUsers(ctx)
-	if err != nil {
-		bl.logger.Log("Failed to get list of users", err.Error())
-		return users, err
-	}
-	return users, nil
 }

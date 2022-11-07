@@ -1,2 +1,0 @@
-DROP TABLE IF EXISTS invoice;
-DROP TABLE IF EXISTS users;

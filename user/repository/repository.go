@@ -9,15 +9,10 @@ import (
 )
 
 type Repository interface {
-	CreateInvoice(ctx context.Context, createInvoiceReq model.CreateInvoiceRequest) (model.Invoice, error)
-	ListInvoice(ctx context.Context, userId int) ([]model.Invoice, error)
 	CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (int, error)
 	ListUsers(ctx context.Context) ([]model.User, error)
 	GetUserFromAuth(ctx context.Context, email string) (userId int, hashedPassword string, err error)
 	GetUser(ctx context.Context, userId int) (model.User, error)
-	GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error)
-	EditInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) error
-	DeleteInvoice(ctx context.Context, invoiceId string) error
 }
 
 type repository struct {
@@ -60,76 +55,6 @@ func (repo *repository) GetUser(ctx context.Context, userId int) (model.User, er
 		return user, err
 	}
 	return user, nil
-}
-
-func (repo *repository) CreateInvoice(ctx context.Context, createInvoiceReq model.CreateInvoiceRequest) (model.Invoice, error) {
-	var (
-		invoice model.Invoice
-		err     error
-		tx      *sql.Tx
-	)
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	tx, err = repo.db.BeginTx(ctx, nil)
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
-
-	if err != nil {
-		return invoice, fmt.Errorf("Failed to begin transaction", err.Error())
-	}
-
-	insertQuery := `insert into "invoice"("id","user_id","admin_id","paid","payment_status","created_at","updated_at")
-	values 
-	($1,$2,$3,$4,$5,$6,$7) `
-	_, err = tx.ExecContext(ctx, insertQuery, createInvoiceReq.Id, createInvoiceReq.UserId, createInvoiceReq.AdminId, createInvoiceReq.Paid, createInvoiceReq.PaymentStatus, createInvoiceReq.CreatedAt, createInvoiceReq.UpdatedAt)
-	if err != nil {
-		return invoice, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return invoice, fmt.Errorf("Failed to commit transaction", err.Error())
-	}
-
-	invoice.Id = createInvoiceReq.Id
-	invoice.AdminId = createInvoiceReq.AdminId
-	invoice.UserId = createInvoiceReq.UserId
-	invoice.Paid = createInvoiceReq.Paid
-	invoice.PaymentStatus = createInvoiceReq.PaymentStatus
-	invoice.CreatedAt = createInvoiceReq.CreatedAt
-	invoice.UpdatedAt = createInvoiceReq.UpdatedAt
-
-	return invoice, nil
-}
-
-func (repo *repository) ListInvoice(ctx context.Context, userId int) ([]model.Invoice, error) {
-	var (
-		invoices = make([]model.Invoice, 0)
-	)
-
-	list := `select * from invoice where user_id = $1 ;`
-	rows, err := repo.db.QueryContext(ctx, list, userId)
-	if err != nil {
-		return invoices, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var invoice model.Invoice
-		if err := rows.Scan(&invoice.Id, &invoice.UserId, &invoice.Paid, &invoice.PaymentStatus, &invoice.AdminId, &invoice.CreatedAt, &invoice.UpdatedAt); err != nil {
-			return invoices, fmt.Errorf("Failed to scan ", err.Error())
-		}
-		invoices = append(invoices, invoice)
-	}
-
-	return invoices, nil
-
 }
 
 func (repo *repository) CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (int, error) {
@@ -224,60 +149,7 @@ func (repo *repository) ListUsers(ctx context.Context) ([]model.User, error) {
 	return users, nil
 }
 
-func (repo *repository) GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error) {
-	var (
-		invoice model.Invoice
-		row     *sql.Row
-		err     error
-	)
-	row = repo.db.QueryRowContext(ctx, `select * from invoice where id=$1`, invoiceId)
-	if row.Err() != nil {
-		return invoice, row.Err()
-	}
-	if err = row.Scan(&invoice.Id, &invoice.UserId, &invoice.AdminId, &invoice.Paid, &invoice.PaymentStatus, &invoice.CreatedAt, &invoice.UpdatedAt); err != nil {
-		return invoice, err
-	}
-	return invoice, nil
-}
-
-func (repo *repository) EditInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) error {
-	var err error
-	_, err = repo.db.ExecContext(ctx, `update invoice set paid = $1 ,payment_status =$2 where id=$3`, updateInvoiceReq.Paid, updateInvoiceReq.PaymentStatus, updateInvoiceReq.Id)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (repo *repository) queryRowsWithFilter(ctx context.Context, query string, filters model.InvoiceFilter) (string, error) {
 
 	return "", nil
-}
-
-func (repo *repository) DeleteInvoice(ctx context.Context, invoiceId string) error {
-	var (
-		tx  *sql.Tx
-		err error
-	)
-
-	tx, err = repo.db.BeginTx(ctx, nil)
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
-
-	if err != nil {
-		return fmt.Errorf("Failed to begin transaction", err.Error())
-	}
-
-	_, err = tx.ExecContext(ctx, "delete from invoice where id = $1", invoiceId)
-	if err != nil {
-		return fmt.Errorf("Failed to delete invoice", err.Error())
-	}
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("Failed to commit transaction", err.Error())
-	}
-	return nil
 }

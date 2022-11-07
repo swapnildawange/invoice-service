@@ -5,24 +5,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"invoice_service/model"
+	"invoice_service/security"
 	"strconv"
 
 	"net/http"
 
 	"github.com/go-kit/kit/log"
+	"github.com/golang-jwt/jwt/v4"
 
+	gokitjwt "github.com/go-kit/kit/auth/jwt"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
-func NewHTTPHandler(logger log.Logger, endpoint Endpoints) *mux.Router {
+func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoint Endpoints) *mux.Router {
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorLogger(logger),
 		httptransport.ServerErrorEncoder(encodeError),
+		httptransport.ServerBefore(gokitjwt.HTTPToContext()),
+	}
+
+	key := []byte("mysecret")
+	keys := func(token *jwt.Token) (interface{}, error) {
+		return key, nil
 	}
 
 	createInvoiceHandler := httptransport.NewServer(
-		endpoint.CreateInvoice,
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.CreateInvoice),
 		decodeCreateInvoiceReq,
 		encodeResponse,
 		options...,
@@ -35,55 +44,56 @@ func NewHTTPHandler(logger log.Logger, endpoint Endpoints) *mux.Router {
 		options...,
 	)
 
-	listInvoiceHandler := httptransport.NewServer(
-		endpoint.ListInvoice,
-		decodeListInvoiceReq,
-		encodeResponse,
-		options...,
-	)
+	// listInvoiceHandler := httptransport.NewServer(
+	// 	endpoint.ListInvoice,
+	// 	decodeListInvoiceReq,
+	// 	encodeResponse,
+	// 	options...,
+	// )
 
 	updateInvoiceHandler := httptransport.NewServer(
-		endpoint.UpdateInvoice,
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.UpdateInvoice),
 		decodeUpdateInvoiceReq,
 		encodeResponse,
 		options...,
 	)
 
 	deleteInvoiceHandler := httptransport.NewServer(
-		endpoint.DeleteInvoice,
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.DeleteInvoice),
 		decodeDeleteInvoiceReq,
 		encodeResponse,
 		options...,
 	)
 
-	createUserHandler := httptransport.NewServer(
-		endpoint.CreateUser,
-		decodeCreateUserRequest,
-		encodeResponse,
-		options...,
-	)
+	
 
-	listUsersHandler := httptransport.NewServer(
-		endpoint.ListUsers,
-		decodeListUsersReq,
-		encodeResponse,
-		options...,
-	)
-
-	r := mux.NewRouter()
+	// admin routes
 	r.Methods(http.MethodPost).Path("/create_invoice").Handler(createInvoiceHandler)
-	r.Methods(http.MethodGet).Path("/invoice").Handler(getInvoiceHandler) //need to change
-	r.Methods(http.MethodGet).Path("/invoice/{id}").Handler(listInvoiceHandler)
 	r.Methods(http.MethodPatch).Path("/update_invoice/{id}").Handler(updateInvoiceHandler)
 	r.Methods(http.MethodDelete).Path("/invoice/{id}").Handler(deleteInvoiceHandler)
-	r.Methods(http.MethodPost).Path("/create_user").Handler(createUserHandler)
-	r.Methods(http.MethodGet).Path("/users").Handler(listUsersHandler)
+
+	// user routes
+
+	// common routes
+	r.Methods(http.MethodGet).Path("/invoice/{id}").Handler(getInvoiceHandler)
+	// r.Methods(http.MethodGet).Path("/invoice").Handler(listInvoiceHandler) //need to change
+
 
 	return r
 }
 
+type errorer interface {
+	error() error
+}
+
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	w.Header().Set("Content-Type", "application/json")
+	if e, ok := response.(errorer); ok && e.error() != nil {
+		// Not a Go kit transport error, but a business-logic error.
+		// Provide those as HTTP errors.
+		encodeError(ctx, e.error(), w)
+		return nil
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	return json.NewEncoder(w).Encode(response)
 }
 
@@ -93,17 +103,17 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	w.WriteHeader(http.StatusInternalServerError)
-	
+	if err == security.InvalidLoginErr || err == security.NotAuthorizedErr {
+		w.WriteHeader(http.StatusUnauthorized)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
 }
 
-func decodeListUsersReq(ctx context.Context, req *http.Request) (interface{}, error) {
-
-	return "", nil
-}
 
 func decodeCreateInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
 	var request model.CreateInvoiceRequest
@@ -119,7 +129,6 @@ func decodeGetInvoiceReq(ctx context.Context, req *http.Request) (interface{}, e
 
 	query := req.URL.Query()
 	invoice_id := query.Get("id")
-
 	request.Id = invoice_id
 
 	return request, nil
@@ -170,3 +179,4 @@ func decodeCreateUserRequest(ctx context.Context, req *http.Request) (interface{
 	}
 	return request, nil
 }
+

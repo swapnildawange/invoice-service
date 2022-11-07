@@ -30,7 +30,6 @@ type User struct {
 	Email     string    `json:"email"`
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
-	Password  string    `json:"password,omitempty"`
 	Role      int       `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -66,7 +65,7 @@ type GetInvoiceRequest struct {
 }
 
 type UpdateInvoiceRequest struct {
-	Invoice Invoice `json:"invoice"`
+	Invoice
 }
 
 type CreateUserRequest struct {
@@ -78,4 +77,56 @@ type CreateUserRequest struct {
 	Role      int       `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// request
+type AuthRequest struct {
+	Id       int    `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+type LoginResponse struct {
+	User
+	Token string `json:"token"`
+}
+
+// response
+type AuthResponse struct {
+	Id    int    `json:"id"`
+	Email string `json:"email"`
+	Role  int    `json:"role"`
+	Mesg  string `json:"mesg,omitempty"`
+	Err   error  `json:"err,omitempty"`
+}
+
+type SignUpRequest struct {
+	Id        int    `json:"id"`
+	Email     string `json:"email"`
+	Role      int    `json:"role"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Password  string `json:"password"`
+}
+
+type SignUpResponse struct {
+	Id        int    `json:"id"`
+	Email     string `json:"email"`
+	Role      int    `json:"role"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+}
+
+type InvoiceFilter struct {
+	Id            string        `json:"invoice_id"`
+	UserId        int           `json:"user_id"`
+	Paid          float64       `json:"paid"`
+	AdminId       int           `json:"admin_id"`
+	PaymentStatus PaymentStatus `json:"payment_status"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
 }

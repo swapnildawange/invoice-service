@@ -28,3 +28,6 @@ migrateup:
 
 migratedown:
 	migrate -path db/migration -database "postgres://postgres:password@localhost/invoicing?sslmode=disable" -verbose down
+
+# createmigration:
+# 	migrate create -ext sql -dir db/migration -seq init_schema

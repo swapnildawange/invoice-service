@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"invoice_service/model"
+	"invoice_service/security"
 
+	gokitjwt "github.com/go-kit/kit/auth/jwt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 )
@@ -15,8 +17,6 @@ type Endpoints struct {
 	ListInvoice   endpoint.Endpoint
 	UpdateInvoice endpoint.Endpoint
 	DeleteInvoice endpoint.Endpoint
-	CreateUser    endpoint.Endpoint
-	ListUsers     endpoint.Endpoint
 }
 
 func NewEndpoints(logger log.Logger, bl BL) Endpoints {
@@ -26,26 +26,6 @@ func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 		ListInvoice:   makeListInvoice(logger, bl),
 		UpdateInvoice: makeUpdateInvoice(logger, bl),
 		DeleteInvoice: makeDeleteEndpoint(logger, bl),
-		CreateUser:    makeCreateUser(logger, bl),
-		ListUsers:     makeListUsers(logger, bl),
-	}
-}
-
-func makeCreateUser(logger log.Logger, bl BL) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		var (
-			req  model.CreateUserRequest
-			user model.User
-		)
-		req = request.(model.CreateUserRequest)
-		if err != nil {
-			return nil, fmt.Errorf("invalid request for create user")
-		}
-		user, err = bl.CreateUser(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-		return user, nil
 	}
 }
 
@@ -56,7 +36,19 @@ func makeCreateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 			createInvoiceRes model.Invoice
 		)
 
+		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
+		if !ok {
+			return nil, fmt.Errorf("invalid jwt token")
+		}
+
+		if JWTClaims.Role == 2 {
+			return nil, security.NotAuthorizedErr
+		}
+
 		req = request.(model.CreateInvoiceRequest)
+		// admin id
+		req.AdminId = JWTClaims.Id
+
 		createInvoiceRes, err = bl.CreateInvoice(ctx, req)
 		if err != nil {
 			return nil, err
@@ -68,12 +60,12 @@ func makeCreateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 func makeGetInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		var (
-			invoice   model.Invoice
-			invoiceId string
+			invoice       model.Invoice
+			getInvoiceReq model.GetInvoiceRequest
 		)
 
-		invoiceId = request.(string)
-		invoice, err = bl.GetInvoice(ctx, invoiceId)
+		getInvoiceReq = request.(model.GetInvoiceRequest)
+		invoice, err = bl.GetInvoice(ctx, getInvoiceReq.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -104,6 +96,15 @@ func makeUpdateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 			invoice model.Invoice
 		)
 
+		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
+		if !ok {
+			return nil, fmt.Errorf("invalid jwt token")
+		}
+
+		if JWTClaims.Role == 2 {
+			return nil, security.NotAuthorizedErr
+		}
+
 		req = request.(model.UpdateInvoiceRequest)
 		invoice, err = bl.UpdateInvoice(ctx, req)
 		if err != nil {
@@ -119,23 +120,20 @@ func makeDeleteEndpoint(logger log.Logger, bl BL) endpoint.Endpoint {
 			invoiceId string
 		)
 
+		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
+		if !ok {
+			return nil, fmt.Errorf("invalid jwt token")
+		}
+
+		if JWTClaims.Role == 2 {
+			return nil, security.NotAuthorizedErr
+		}
+
 		invoiceId = request.(string)
 		err = bl.DeleteInvoice(ctx, invoiceId)
 		if err != nil {
 			return nil, err
 		}
 		return fmt.Sprintf("Invoice deleted"), nil
-	}
-}
-
-func makeListUsers(logger log.Logger, bl BL) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		response, nil := bl.ListUsers(ctx)
-		if err != nil {
-			logger.Log("endpoint", "makeListUsers", "Failed to list users", err.Error())
-			return
-		}
-		return
-
 	}
 }

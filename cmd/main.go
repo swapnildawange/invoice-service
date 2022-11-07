@@ -1,13 +1,19 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"invoice_service/invoice"
-	"invoice_service/invoice/repository"
+	invoiceRepository "invoice_service/invoice/repository"
+	"invoice_service/security"
+	"invoice_service/user"
+	userRepository "invoice_service/user/repository"
 	"net/http"
 	"os"
 
 	"github.com/go-kit/kit/log"
+	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
@@ -15,12 +21,16 @@ const (
 	webPort  = ":8080"
 	host     = "localhost"
 	port     = 5432
-	user     = "postgres"
+	psqlUser = "postgres"
 	password = "password"
 	dbname   = "users"
 )
 
 func main() {
+	s, _ := security.HashPassword("secret")
+	fmt.Println(s)
+	ctx := context.Background()
+
 	// initiate logger
 	logger := log.NewLogfmtLogger(os.Stderr)
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
@@ -28,25 +38,32 @@ func main() {
 
 	// initate db
 	db, err := InitDB(logger)
-	// db := connectToDB(logger, 5, 2)
 	if err != nil {
 		panic("can't connect to Postgres")
 	}
 	logger.Log("The database is connected")
 
-	repo := repository.NewRepository(db)
 	// initate repository
+	var userRepo = userRepository.NewRepository(db)
+	var inviceRepo = invoiceRepository.NewRepository(db)
+	// initiate invoice bl
+	var invoiceBL = invoice.NewBL(logger, inviceRepo)
+	// initiate user bl
+	var userBL = user.NewBL(logger, userRepo)
 
-	// initiate bl
-	bl := invoice.NewBL(logger, repo)
-
-	// initate endpoints
-	endpoints := invoice.NewEndpoints(logger, bl)
+	// initate invoice endpoints
+	var invoiceEndpoints = invoice.NewEndpoints(logger, invoiceBL)
+	// initiate user endpoints
+	var userEndpoints = user.NewEndpoints(logger, userBL)
+	// initiate router
+	var router = mux.NewRouter()
 	// initate handlers
-	handlers := invoice.NewHTTPHandler(logger, endpoints)
+	router = invoice.NewHTTPHandler(ctx, logger, router, invoiceEndpoints)
+
+	router = user.NewHTTPHandler(ctx, logger, router, userEndpoints)
 	// start the server
 	logger.Log("Starting the server on port", webPort)
-	err = http.ListenAndServe(webPort, handlers)
+	err = http.ListenAndServe(webPort, router)
 	if err != nil {
 		logger.Log(err)
 	}
@@ -100,4 +117,3 @@ func InitDB(logger log.Logger) (*sql.DB, error) {
 // 	}
 // 	return nil
 // }
-

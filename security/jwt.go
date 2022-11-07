@@ -7,7 +7,7 @@ import (
 	"time"
 
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type jwtResponse struct {
@@ -19,23 +19,34 @@ type JWT interface {
 	VerifyJWT(w http.ResponseWriter, r *http.Request) (jwtResponse, error)
 }
 
-func GenerateJWT() (string, error) {
+type CustomClaims struct {
+	Id         int  `json:"id"`
+	Authorized bool `json:"authorized"`
+	Role       int  `json:"role"`
+	jwt.StandardClaims
+}
+
+func GetJWTClaims() jwt.Claims {
+	return &CustomClaims{}
+}
+
+func GenerateJWT(key string, userId, role int) (string, error) {
 	var (
 		token  *jwt.Token
 		claims jwt.MapClaims
 	)
 
-	token = jwt.New(jwt.SigningMethodEdDSA)
+	token = jwt.New(jwt.SigningMethodHS256)
 	claims = token.Claims.(jwt.MapClaims)
-	claims["exp"] = time.Now().Add(10 * time.Minute)
-	claims["authorized"] = true
-	claims["role"] = "admin"
-	claims["email"] = "email"
-	claims["id"] = "user_id"
 
-	tokenString, err := token.SignedString("mysecretkey")
+	claims["exp"] = time.Now().Add(time.Minute * 120).Unix()
+	claims["authorized"] = true
+	claims["role"] = role
+	claims["id"] = userId
+
+	tokenString, err := token.SignedString([]byte(key))
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	return tokenString, nil
