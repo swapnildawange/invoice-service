@@ -104,20 +104,23 @@ func (repo *repository) queryInvoiceWithFilter(query string, filter model.Invoic
 
 	var filterValues []interface{}
 
-	switch {
-	case filter.Id != "":
+	if filter.Id != "" {
 		filterValues = append(filterValues, filter.Id)
 		query += ` AND id = $` + strconv.Itoa(len(filterValues))
-	case filter.UserId != 0:
+	}
+	if filter.UserId != 0 {
 		filterValues = append(filterValues, filter.UserId)
 		query += ` AND user_id = $` + strconv.Itoa(len(filterValues))
-	case filter.AdminId != 0:
+	}
+	if filter.AdminId != 0 {
 		filterValues = append(filterValues, filter.AdminId)
 		query += ` AND admin_id = $` + strconv.Itoa(len(filterValues))
-	case filter.Paid >= 0:
+	}
+	if filter.Paid >= 0 {
 		filterValues = append(filterValues, filter.Paid)
 		query += ` AND paid = $` + strconv.Itoa(len(filterValues))
-	case filter.PaymentStatus > 0:
+	}
+	if filter.PaymentStatus > 0 {
 		filterValues = append(filterValues, filter.PaymentStatus)
 		query += ` AND payment_status = $` + strconv.Itoa(len(filterValues))
 	}

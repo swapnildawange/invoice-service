@@ -17,6 +17,7 @@ type BL interface {
 	ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error)
 	Login(ctx context.Context, loginReq model.LoginRequest) (model.User, string, error)
 	DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) (string, error)
+	EditUser(ctx context.Context, editUserReq model.EditUserRequest) (model.User, error)
 }
 
 type bl struct {
@@ -117,4 +118,14 @@ func (bl *bl) DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq)
 		return "", fmt.Errorf("Failed to delete user")
 	}
 	return "Deleted user Successfully", nil
+}
+
+func (bl *bl) EditUser(ctx context.Context, editUserReq model.EditUserRequest) (model.User, error) {
+
+	editedUser, err := bl.repo.EditUser(ctx, editUserReq)
+	if err != nil {
+		bl.logger.Log("bl", "Failed to edit user", err.Error())
+		return editedUser, fmt.Errorf("Failed to edit user")
+	}
+	return editedUser, nil
 }

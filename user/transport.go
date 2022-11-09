@@ -66,12 +66,19 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		options...,
 	)
 
-	r.Methods(http.MethodPost).Path("/create_user").Handler(createUserHandler)
+	editUserHandler := httptransport.NewServer(
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.EditUser),
+		decodeEditUserReq,
+		encodeResponse,
+		options...,
+	)
+
 	r.Methods(http.MethodPost).Path("/create_user").Handler(createUserHandler)
 	r.Methods(http.MethodGet).Path("/users").Handler(listUsersHandler)
+	r.Methods(http.MethodPatch).Path("/user").Handler(editUserHandler)
+	r.Methods(http.MethodDelete).Path("/user").Handler(deleteUserHandler)
 	r.Methods(http.MethodPost).Path("/login").Handler(loginHandler)
 	r.Methods(http.MethodPost).Path("/generate_token").Handler(jwtTokenHandler)
-	r.Methods(http.MethodDelete).Path("/user").Handler(deleteUserHandler)
 
 	return r
 }
@@ -176,6 +183,7 @@ func decodeLoginReq(ctx context.Context, req *http.Request) (interface{}, error)
 	}
 	return request, nil
 }
+
 func decodeGenerateTokenReq(ctx context.Context, req *http.Request) (interface{}, error) {
 	return nil, nil
 }
@@ -198,4 +206,13 @@ func decodeDeleteReq(ctx context.Context, req *http.Request) (interface{}, error
 	deleteUserReq.Email = req.URL.Query().Get("email")
 
 	return deleteUserReq, nil
+}
+
+func decodeEditUserReq(ctx context.Context, req *http.Request) (interface{}, error) {
+
+	var request model.EditUserRequest
+	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+		return nil, err
+	}
+	return request, nil
 }

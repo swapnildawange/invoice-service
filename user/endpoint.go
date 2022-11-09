@@ -18,6 +18,7 @@ type Endpoints struct {
 	GenerateJWTToken endpoint.Endpoint
 	LoginHandler     endpoint.Endpoint
 	DeleteUser       endpoint.Endpoint
+	EditUser         endpoint.Endpoint
 }
 
 func NewEndpoints(logger log.Logger, bl BL) Endpoints {
@@ -27,6 +28,20 @@ func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 		GenerateJWTToken: makeGenerateJWT(logger, bl),
 		LoginHandler:     makeLoginHandler(logger, bl),
 		DeleteUser:       makeDeleteUser(logger, bl),
+		EditUser:         makeEditUser(logger, bl),
+	}
+}
+
+func makeEditUser(logger log.Logger, bl BL) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		editUserReq := request.(model.EditUserRequest)
+
+		user, err := bl.EditUser(ctx, editUserReq)
+		if err != nil {
+			logger.Log("Endpoint", "Failed to edit user", err.Error())
+			return nil, err
+		}
+		return user, nil
 	}
 }
 

@@ -16,6 +16,7 @@ type Repository interface {
 	GetUserFromAuth(ctx context.Context, email string) (userId int, hashedPassword string, err error)
 	GetUser(ctx context.Context, userId int) (model.User, error)
 	DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) error
+	EditUser(ctx context.Context, editUserReq model.EditUserRequest) (model.User, error)
 }
 
 type repository struct {
@@ -161,23 +162,17 @@ func (s *repository) queryUsersWithFilter(ctx context.Context, query string, fil
 		count        int
 	)
 
-	if filter.FirstName != "" && filter.LastName != "" {
-		query += " WHERE first_name LIKE '%" + filter.FirstName + "%'"
-
-	} else if filter.FirstName != "" {
-		query += "WHERE first_name LIKE '%" + filter.FirstName + "%'"
-	} else if filter.LastName != "" {
-		query += "WHERE last_name LIKE '%" + filter.LastName + "%'"
+	if filter.FirstName != "" {
+		query += " AND first_name LIKE '%" + filter.FirstName + "%'"
+		count += 1
 	}
 
-	switch {
-	case filter.FirstName != "":
-		query += " AND first_name LIKE '%" + filter.LastName + "%'"
-		count += 1
-	case filter.FirstName != "":
+	if filter.LastName != "" {
 		query += " AND last_name LIKE '%" + filter.LastName + "%'"
 		count += 1
-	case filter.Id != 0:
+	}
+
+	if filter.Id != 0 {
 		filterValues = append(filterValues, filter.Id)
 		count += 1
 		query += ` AND id = $` + strconv.Itoa(len(filterValues))
@@ -247,4 +242,64 @@ func (repo *repository) DeleteUser(ctx context.Context, deleteUserReq model.Dele
 	}
 
 	return nil
+}
+
+func (repo *repository) EditUser(ctx context.Context, editUserReq model.EditUserRequest) (model.User, error) {
+	var (
+		newUser model.User
+		values  []interface{}
+		tx      *sql.Tx
+		err     error
+		row     *sql.Row
+	)
+	tx, err = repo.db.BeginTx(ctx, nil)
+	if err != nil {
+		return newUser, fmt.Errorf("Failed to begin db transaction %s", err.Error())
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	updateQuery := `UPDATE users SET`
+
+	if editUserReq.FirstName != "" {
+		values = append(values, editUserReq.FirstName)
+		updateQuery += ` first_name = $` + strconv.Itoa(len(values)) + ` ,`
+	}
+	if editUserReq.LastName != "" {
+		values = append(values, editUserReq.LastName)
+		updateQuery += ` last_name = $` + strconv.Itoa(len(values)) + ` ,`
+	}
+
+	values = append(values, time.Now())
+	updateQuery += ` updated_at = $` + strconv.Itoa(len(values)) + ` ,`
+
+	values = append(values, editUserReq.Id)
+	updateQuery += ` WHERE id = $` + strconv.Itoa(len(values))
+
+	updateQuery = strings.ReplaceAll(updateQuery, ", WHERE", "WHERE ")
+
+	_, err = tx.ExecContext(ctx, updateQuery, values...)
+	if err != nil {
+		return newUser, fmt.Errorf("Failed to execute update user query %s", err.Error())
+	}
+
+	selectQuery := `select id,first_name,last_name,role,created_at,updated_at from users where id = $1`
+	row = tx.QueryRowContext(ctx, selectQuery, editUserReq.Id)
+	if row.Err() != nil {
+		return newUser, fmt.Errorf("Failed to get updated user %s", err.Error())
+	}
+	if err = row.Scan(&newUser.Id, &newUser.FirstName, &newUser.LastName, &newUser.Role, &newUser.CreatedAt, &newUser.UpdatedAt); err != nil {
+		return newUser, fmt.Errorf("Failed to scan updated user %s", err.Error())
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return newUser, fmt.Errorf("Failed to commit db transaction %s", err.Error())
+	}
+
+	return newUser, nil
 }

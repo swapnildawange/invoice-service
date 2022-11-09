@@ -35,7 +35,7 @@ var MapRoleToName = map[int]Role{
 
 type User struct {
 	Id        int       `json:"id"`
-	Email     string    `json:"email"`
+	Email     string    `json:"email,omitempty"`
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
 	Role      int       `json:"role"`
@@ -158,4 +158,11 @@ type InvoiceFilter struct {
 type DeleteUserReq struct {
 	Id    int    `json:"id"`
 	Email string `json:"email"`
+}
+
+type EditUserRequest struct {
+	Id        int    `json:"id"`
+	Email     string `json:"email"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }
