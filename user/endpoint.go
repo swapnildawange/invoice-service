@@ -9,6 +9,7 @@ import (
 	gokitjwt "github.com/go-kit/kit/auth/jwt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	"github.com/spf13/viper"
 )
 
 type Endpoints struct {
@@ -16,6 +17,7 @@ type Endpoints struct {
 	ListUsers        endpoint.Endpoint
 	GenerateJWTToken endpoint.Endpoint
 	LoginHandler     endpoint.Endpoint
+	DeleteUser       endpoint.Endpoint
 }
 
 func NewEndpoints(logger log.Logger, bl BL) Endpoints {
@@ -24,16 +26,28 @@ func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 		ListUsers:        makeListUsers(logger, bl),
 		GenerateJWTToken: makeGenerateJWT(logger, bl),
 		LoginHandler:     makeLoginHandler(logger, bl),
+		DeleteUser:       makeDeleteUser(logger, bl),
+	}
+}
+
+func makeDeleteUser(logger log.Logger, bl BL) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		deleteUserReq := request.(model.DeleteUserReq)
+		response, err = bl.DeleteUser(ctx, deleteUserReq)
+		if err != nil {
+			return nil, err
+		}
+		return response, nil
 	}
 }
 
 func makeLoginHandler(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		loginReq, ok := request.(model.LoginRequest)
-
 		if !ok {
 			return nil, fmt.Errorf("Invalid login request")
 		}
+
 		user, token, err := bl.Login(ctx, loginReq)
 		if err != nil {
 			return user, err
@@ -48,7 +62,7 @@ func makeLoginHandler(logger log.Logger, bl BL) endpoint.Endpoint {
 
 func makeGenerateJWT(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		token, err := security.GenerateJWT("mysecret", 1, 1)
+		token, err := security.GenerateJWT(viper.GetString("JWTSECRET"), 1, 1)
 		if err != nil {
 			return "", err
 		}
@@ -93,7 +107,9 @@ func makeListUsers(logger log.Logger, bl BL) endpoint.Endpoint {
 			return nil, security.NotAuthorizedErr
 		}
 
-		response, nil := bl.ListUsers(ctx)
+		req := request.(model.UserFilter)
+
+		response, err = bl.ListUsers(ctx, req)
 		if err != nil {
 			logger.Log("endpoint", "makeListUsers", "Failed to list users", err.Error())
 			return

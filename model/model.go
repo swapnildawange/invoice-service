@@ -2,6 +2,14 @@ package model
 
 import "time"
 
+const (
+	PageSize = 5
+)
+
+type Config struct {
+	WebPort int
+}
+
 // payment status
 type PaymentStatus int
 
@@ -121,12 +129,33 @@ type SignUpResponse struct {
 	LastName  string `json:"last_name"`
 }
 
+type ListUsersRequest struct {
+	Page      int    `json:"page"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+}
+
+type UserFilter struct {
+	Id        int    `json:"id"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Page      int    `json:"page"`
+	SortBy    string `json:"sort_by"`
+	SortOrder string `json:"sort_order"`
+}
+
 type InvoiceFilter struct {
-	Id            string        `json:"invoice_id"`
-	UserId        int           `json:"user_id"`
-	Paid          float64       `json:"paid"`
-	AdminId       int           `json:"admin_id"`
-	PaymentStatus PaymentStatus `json:"payment_status"`
-	CreatedAt     time.Time     `json:"created_at"`
-	UpdatedAt     time.Time     `json:"updated_at"`
+	Id            string  `json:"id"`
+	UserId        int     `json:"user_id"`
+	AdminId       int     `json:"admin_id"`
+	Paid          float64 `json:"paid"`
+	PaymentStatus int     `json:"payment_status"`
+	Page          int     `json:"page"`
+	SortBy        string  `json:"sort_by"`
+	SortOrder     string  `json:"sort_order"`
+}
+
+type DeleteUserReq struct {
+	Id    int    `json:"id"`
+	Email string `json:"email"`
 }

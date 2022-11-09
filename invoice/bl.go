@@ -15,7 +15,7 @@ import (
 type BL interface {
 	CreateInvoice(ctx context.Context, createInvoiceReq model.CreateInvoiceRequest) (model.Invoice, error)
 	GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error)
-	ListInvoice(ctx context.Context, userId int) ([]model.Invoice, error)
+	ListInvoice(ctx context.Context, invoiceFilter model.InvoiceFilter) ([]model.Invoice, error)
 	UpdateInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) (model.Invoice, error)
 	DeleteInvoice(ctx context.Context, invoiceId string) error
 }
@@ -71,12 +71,12 @@ func (bl *bl) GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, 
 	return invoice, nil
 }
 
-func (bl *bl) ListInvoice(ctx context.Context, userId int) ([]model.Invoice, error) {
+func (bl *bl) ListInvoice(ctx context.Context, invoiceFilter model.InvoiceFilter) ([]model.Invoice, error) {
 	var (
 		invoices []model.Invoice
 		err      error
 	)
-	invoices, err = bl.repo.ListInvoice(ctx, userId)
+	invoices, err = bl.repo.ListInvoice(ctx, invoiceFilter)
 	if err != nil {
 		return invoices, err
 	}

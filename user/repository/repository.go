@@ -5,14 +5,17 @@ import (
 	"database/sql"
 	"fmt"
 	"invoice_service/model"
+	"strconv"
+	"strings"
 	"time"
 )
 
 type Repository interface {
 	CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (int, error)
-	ListUsers(ctx context.Context) ([]model.User, error)
+	ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error)
 	GetUserFromAuth(ctx context.Context, email string) (userId int, hashedPassword string, err error)
 	GetUser(ctx context.Context, userId int) (model.User, error)
+	DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) error
 }
 
 type repository struct {
@@ -127,14 +130,17 @@ func (repo *repository) CreateUser(ctx context.Context, createUserReq model.Crea
 	return userId, nil
 }
 
-func (repo *repository) ListUsers(ctx context.Context) ([]model.User, error) {
+func (repo *repository) ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error) {
 	var (
 		users = make([]model.User, 0)
 		err   error
 		rows  *sql.Rows
 	)
-	listUsersQuery := `select id,first_name,last_name,role,created_at,updated_at from users ;`
-	rows, err = repo.db.QueryContext(ctx, listUsersQuery)
+	listUsersQuery := `select id,first_name,last_name,role,created_at,updated_at from users `
+
+	listUsersQuery, filterValues := repo.queryUsersWithFilter(ctx, listUsersQuery, listUserFilter)
+
+	rows, err = repo.db.QueryContext(ctx, listUsersQuery, filterValues...)
 	if err != nil {
 		return users, fmt.Errorf("Failed to list users", err.Error())
 	}
@@ -149,7 +155,96 @@ func (repo *repository) ListUsers(ctx context.Context) ([]model.User, error) {
 	return users, nil
 }
 
-func (repo *repository) queryRowsWithFilter(ctx context.Context, query string, filters model.InvoiceFilter) (string, error) {
+func (s *repository) queryUsersWithFilter(ctx context.Context, query string, filter model.UserFilter) (string, []interface{}) {
+	var (
+		filterValues []interface{}
+		count        int
+	)
 
-	return "", nil
+	if filter.FirstName != "" && filter.LastName != "" {
+		query += " WHERE first_name LIKE '%" + filter.FirstName + "%'"
+
+	} else if filter.FirstName != "" {
+		query += "WHERE first_name LIKE '%" + filter.FirstName + "%'"
+	} else if filter.LastName != "" {
+		query += "WHERE last_name LIKE '%" + filter.LastName + "%'"
+	}
+
+	switch {
+	case filter.FirstName != "":
+		query += " AND first_name LIKE '%" + filter.LastName + "%'"
+		count += 1
+	case filter.FirstName != "":
+		query += " AND last_name LIKE '%" + filter.LastName + "%'"
+		count += 1
+	case filter.Id != 0:
+		filterValues = append(filterValues, filter.Id)
+		count += 1
+		query += ` AND id = $` + strconv.Itoa(len(filterValues))
+	}
+
+	query += fmt.Sprintf(` ORDER BY %s %s`, filter.SortBy, filter.SortOrder)
+
+	filterValues = append(filterValues, model.PageSize)
+	query += ` LIMIT $` + strconv.Itoa(len(filterValues))
+
+	filterValues = append(filterValues, (filter.Page-1)*model.PageSize)
+	query += ` OFFSET $` + strconv.Itoa(len(filterValues))
+
+	if count >= 1 {
+		query = strings.Replace(query, "AND", "WHERE", 1)
+	}
+
+	return query, filterValues
+}
+
+func (repo *repository) DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) error {
+	var (
+		tx     *sql.Tx
+		err    error
+		userId int
+	)
+
+	tx, err = repo.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to begin transaction")
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if deleteUserReq.Email != "" {
+		userId, _, err = repo.GetUserFromAuth(ctx, deleteUserReq.Email)
+		if err != nil {
+			return fmt.Errorf("Failed to get user from  auth table")
+		}
+		if deleteUserReq.Id != -1 && deleteUserReq.Id != userId {
+			return fmt.Errorf("User not found ")
+		}
+		deleteUserReq.Id = userId
+	} else {
+		userId = deleteUserReq.Id
+	}
+	// delete from users
+	usersQuery := `DELETE FROM users where id = $1`
+	_, err = tx.ExecContext(ctx, usersQuery, userId)
+	if err != nil {
+		return fmt.Errorf("Failed to execute delete query for users table", err.Error())
+	}
+	// delete from auth
+	authQuery := `DELETE FROM auth where id = $1`
+	_, err = tx.ExecContext(ctx, authQuery, userId)
+	if err != nil {
+		return fmt.Errorf("Failed to execute  delete query for auth query", err.Error())
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("Failed to commit transaction")
+	}
+
+	return nil
 }

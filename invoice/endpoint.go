@@ -35,7 +35,6 @@ func makeCreateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 			req              model.CreateInvoiceRequest
 			createInvoiceRes model.Invoice
 		)
-
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
 			return nil, fmt.Errorf("invalid jwt token")
@@ -76,12 +75,12 @@ func makeGetInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 func makeListInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		var (
-			invoices []model.Invoice
-			userId   int
+			invoices      []model.Invoice
+			invoiceFilter model.InvoiceFilter
 		)
 
-		userId = request.(int)
-		invoices, err = bl.ListInvoice(ctx, userId)
+		invoiceFilter = request.(model.InvoiceFilter)
+		invoices, err = bl.ListInvoice(ctx, invoiceFilter)
 		if err != nil {
 			return nil, err
 		}

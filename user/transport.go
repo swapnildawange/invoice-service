@@ -3,13 +3,16 @@ package user
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"invoice_service/model"
 	"invoice_service/security"
+	"strconv"
 
 	"net/http"
 
 	"github.com/go-kit/kit/log"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/spf13/viper"
 
 	gokitjwt "github.com/go-kit/kit/auth/jwt"
 	httptransport "github.com/go-kit/kit/transport/http"
@@ -23,9 +26,9 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		httptransport.ServerBefore(gokitjwt.HTTPToContext()),
 	}
 
-	key := []byte("mysecret")
 	keys := func(token *jwt.Token) (interface{}, error) {
-		return key, nil
+		key := viper.GetString("JWTSECRET")
+		return []byte(key), nil
 	}
 
 	createUserHandler := httptransport.NewServer(
@@ -56,11 +59,19 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		options...,
 	)
 
+	deleteUserHandler := httptransport.NewServer(
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.DeleteUser),
+		decodeDeleteReq,
+		encodeResponse,
+		options...,
+	)
+
 	r.Methods(http.MethodPost).Path("/create_user").Handler(createUserHandler)
 	r.Methods(http.MethodPost).Path("/create_user").Handler(createUserHandler)
 	r.Methods(http.MethodGet).Path("/users").Handler(listUsersHandler)
 	r.Methods(http.MethodPost).Path("/login").Handler(loginHandler)
 	r.Methods(http.MethodPost).Path("/generate_token").Handler(jwtTokenHandler)
+	r.Methods(http.MethodDelete).Path("/user").Handler(deleteUserHandler)
 
 	return r
 }
@@ -106,7 +117,56 @@ func decodeCreateUserRequest(ctx context.Context, req *http.Request) (interface{
 }
 
 func decodeListUsersReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	return "", nil
+	var request = model.UserFilter{
+		Page:      1,
+		SortBy:    "id",
+		SortOrder: "ASC",
+	}
+	var (
+		err error
+	)
+
+	id := req.URL.Query().Get("id")
+	if id != "" {
+		request.Id, err = strconv.Atoi(id)
+		if err != nil || request.Id <= 0 {
+			fmt.Println("Invalid id value")
+		}
+
+	}
+
+	page := req.URL.Query().Get("page")
+	if page != "" {
+		request.Page, err = strconv.Atoi(page)
+		if err != nil {
+			fmt.Println("Invalid page value")
+		}
+		if request.Page <= 0 {
+			request.Page = 1
+		}
+	}
+
+	firstName := req.URL.Query().Get("first_name")
+	if firstName != "" {
+		request.FirstName = firstName
+	}
+
+	lastName := req.URL.Query().Get("last_name")
+	if lastName != "" {
+		request.LastName = lastName
+	}
+
+	sortBy := req.URL.Query().Get("sort_by")
+	if sortBy != "" {
+		request.SortBy = sortBy
+	}
+
+	sortOrder := req.URL.Query().Get("sort_order")
+	if sortOrder != "" {
+		request.SortOrder = sortOrder
+	}
+
+	return request, nil
 }
 
 func decodeLoginReq(ctx context.Context, req *http.Request) (interface{}, error) {
@@ -118,4 +178,24 @@ func decodeLoginReq(ctx context.Context, req *http.Request) (interface{}, error)
 }
 func decodeGenerateTokenReq(ctx context.Context, req *http.Request) (interface{}, error) {
 	return nil, nil
+}
+
+func decodeDeleteReq(ctx context.Context, req *http.Request) (interface{}, error) {
+	var (
+		deleteUserReq = model.DeleteUserReq{
+			Id: -1,
+		}
+		err error
+	)
+
+	id := req.URL.Query().Get("id")
+	if id != "" {
+		deleteUserReq.Id, err = strconv.Atoi(id)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid user id")
+		}
+	}
+	deleteUserReq.Email = req.URL.Query().Get("email")
+
+	return deleteUserReq, nil
 }

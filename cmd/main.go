@@ -2,54 +2,44 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"invoice_service/invoice"
-	invoiceRepository "invoice_service/invoice/repository"
-	"invoice_service/security"
 	"invoice_service/user"
-	userRepository "invoice_service/user/repository"
+	"log"
 	"net/http"
-	"os"
 
-	"github.com/go-kit/kit/log"
+	"invoice_service/cmd/inithandler"
+
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
-const (
-	webPort  = ":8080"
-	host     = "localhost"
-	port     = 5432
-	psqlUser = "postgres"
-	password = "password"
-	dbname   = "users"
-)
-
 func main() {
-	s, _ := security.HashPassword("secret")
-	fmt.Println(s)
 	ctx := context.Background()
 
+	// initate viper
+	// inithandler.InitViper()
+	config, err := inithandler.LoadConfig(".")
+	if err != nil {
+		log.Fatal("cannot load config:", err)
+	}
 	// initiate logger
-	logger := log.NewLogfmtLogger(os.Stderr)
-	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-	logger = log.With(logger, "method=", log.DefaultCaller)
+	var logger = inithandler.InitLogger()
 
 	// initate db
-	db, err := InitDB(logger)
+	db, err := inithandler.InitDB(logger)
 	if err != nil {
 		panic("can't connect to Postgres")
 	}
 	logger.Log("The database is connected")
 
 	// initate repository
-	var userRepo = userRepository.NewRepository(db)
-	var inviceRepo = invoiceRepository.NewRepository(db)
+	var repository = inithandler.InitRepository(db)
+
 	// initiate invoice bl
-	var invoiceBL = invoice.NewBL(logger, inviceRepo)
+	var invoiceBL = invoice.NewBL(logger, repository.InvoiceRepo)
 	// initiate user bl
-	var userBL = user.NewBL(logger, userRepo)
+	var userBL = user.NewBL(logger, repository.UserRepo)
 
 	// initate invoice endpoints
 	var invoiceEndpoints = invoice.NewEndpoints(logger, invoiceBL)
@@ -62,58 +52,10 @@ func main() {
 
 	router = user.NewHTTPHandler(ctx, logger, router, userEndpoints)
 	// start the server
-	logger.Log("Starting the server on port", webPort)
-	err = http.ListenAndServe(webPort, router)
+	logger.Log("Starting the server on port", config.WebPort)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", config.WebPort), router)
 	if err != nil {
 		logger.Log(err)
 	}
 
 }
-
-// This function will make a connection to the database only once.
-func InitDB(logger log.Logger) (*sql.DB, error) {
-	var err error
-	connStr := "postgres://postgres:password@localhost/invoicing?sslmode=disable"
-
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
-// func openDB(logger log.Logger, dsn string) (*sql.DB, error) {
-// 	var (
-// 		db  *sql.DB
-// 		err error
-// 	)
-// 	db, err = sql.Open("pgx", dsn)
-// 	if err != nil {
-// 		logger.Log("Failed to open Database", err.Error())
-// 		return db, err
-// 	}
-// 	err = db.Ping()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return db, nil
-// }
-
-// func connectToDB(logger log.Logger, retries, delay int) *sql.DB {
-// 	dsn := os.Getenv("DSN")
-// 	for i := 0; i < retries; i++ {
-// 		connection, err := openDB(logger, dsn)
-// 		if err != nil {
-// 			logger.Log("Postgres not ready yet", err.Error())
-// 			time.Sleep(time.Duration(delay) * time.Second)
-// 		} else {
-// 			logger.Log("Successfully connected postgres DB")
-// 			return connection
-// 		}
-// 	}
-// 	return nil
-// }

@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"invoice_service/model"
@@ -13,8 +14,9 @@ import (
 
 type BL interface {
 	CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (model.User, error)
-	ListUsers(ctx context.Context) ([]model.User, error)
+	ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error)
 	Login(ctx context.Context, loginReq model.LoginRequest) (model.User, string, error)
+	DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) (string, error)
 }
 
 type bl struct {
@@ -95,15 +97,24 @@ func (bl *bl) Login(ctx context.Context, loginReq model.LoginRequest) (model.Use
 	return user, token, nil
 }
 
-func (bl *bl) ListUsers(ctx context.Context) ([]model.User, error) {
+func (bl *bl) ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error) {
 	var (
 		users []model.User
 		err   error
 	)
-	users, err = bl.repo.ListUsers(ctx)
+	users, err = bl.repo.ListUsers(ctx, listUserFilter)
 	if err != nil {
 		bl.logger.Log("Failed to get list of users", err.Error())
 		return users, err
 	}
 	return users, nil
+}
+
+func (bl *bl) DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) (string, error) {
+	err := bl.repo.DeleteUser(ctx, deleteUserReq)
+	if err != nil {
+		bl.logger.Log("Failed to delete user", err.Error())
+		return "", fmt.Errorf("Failed to delete user")
+	}
+	return "Deleted user Successfully", nil
 }

@@ -8,6 +8,7 @@ import (
 
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/spf13/viper"
 )
 
 type jwtResponse struct {
@@ -122,7 +123,7 @@ func VerifyJWT(endpointHandler *httptransport.Server) http.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodECDSA); !ok {
 				return nil, fmt.Errorf("There was an error in parsing token")
 			}
-			return "mysecretkey", nil
+			return viper.Get("JWTSECRET"), nil
 		})
 		if err != nil {
 			return
