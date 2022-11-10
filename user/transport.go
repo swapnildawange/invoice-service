@@ -45,6 +45,20 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		options...,
 	)
 
+	editUserHandler := httptransport.NewServer(
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.EditUser),
+		decodeEditUserReq,
+		encodeResponse,
+		options...,
+	)
+
+	deleteUserHandler := httptransport.NewServer(
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.DeleteUser),
+		decodeDeleteReq,
+		encodeResponse,
+		options...,
+	)
+
 	loginHandler := httptransport.NewServer(
 		endpoint.LoginHandler,
 		decodeLoginReq,
@@ -59,24 +73,11 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		options...,
 	)
 
-	deleteUserHandler := httptransport.NewServer(
-		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.DeleteUser),
-		decodeDeleteReq,
-		encodeResponse,
-		options...,
-	)
-
-	editUserHandler := httptransport.NewServer(
-		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.EditUser),
-		decodeEditUserReq,
-		encodeResponse,
-		options...,
-	)
-
-	r.Methods(http.MethodPost).Path("/create_user").Handler(createUserHandler)
+	r.Methods(http.MethodPost).Path("/user").Handler(createUserHandler)
 	r.Methods(http.MethodGet).Path("/users").Handler(listUsersHandler)
-	r.Methods(http.MethodPatch).Path("/user").Handler(editUserHandler)
-	r.Methods(http.MethodDelete).Path("/user").Handler(deleteUserHandler)
+	r.Methods(http.MethodPatch).Path("/user/{id}").Handler(editUserHandler)
+	r.Methods(http.MethodDelete).Path("/user/{id}").Handler(deleteUserHandler)
+
 	r.Methods(http.MethodPost).Path("/login").Handler(loginHandler)
 	r.Methods(http.MethodPost).Path("/generate_token").Handler(jwtTokenHandler)
 
@@ -118,18 +119,18 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 func decodeCreateUserRequest(ctx context.Context, req *http.Request) (interface{}, error) {
 	var request model.CreateUserRequest
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode create user request %v", err)
 	}
 	return request, nil
 }
 
 func decodeListUsersReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	var request = model.UserFilter{
-		Page:      1,
-		SortBy:    "id",
-		SortOrder: "ASC",
-	}
 	var (
+		request = model.UserFilter{
+			Page:      1,
+			SortBy:    "id",
+			SortOrder: "ASC",
+		}
 		err error
 	)
 
@@ -137,7 +138,7 @@ func decodeListUsersReq(ctx context.Context, req *http.Request) (interface{}, er
 	if id != "" {
 		request.Id, err = strconv.Atoi(id)
 		if err != nil || request.Id <= 0 {
-			fmt.Println("Invalid id value")
+			return nil, fmt.Errorf("invalid user id %v", err)
 		}
 
 	}
@@ -146,7 +147,7 @@ func decodeListUsersReq(ctx context.Context, req *http.Request) (interface{}, er
 	if page != "" {
 		request.Page, err = strconv.Atoi(page)
 		if err != nil {
-			fmt.Println("Invalid page value")
+			return nil, fmt.Errorf("invalid page value %v", err)
 		}
 		if request.Page <= 0 {
 			request.Page = 1

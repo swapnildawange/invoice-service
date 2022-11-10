@@ -10,7 +10,7 @@ import (
 
 	"net/http"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/viper"
 
@@ -38,12 +38,12 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		options...,
 	)
 
-	getInvoiceHandler := httptransport.NewServer(
-		endpoint.GetInvoice,
-		decodeGetInvoiceReq,
-		encodeResponse,
-		options...,
-	)
+	// getInvoiceHandler := httptransport.NewServer(
+	// 	endpoint.GetInvoice,
+	// 	decodeGetInvoiceReq,
+	// 	encodeResponse,
+	// 	options...,
+	// )
 
 	listInvoiceHandler := httptransport.NewServer(
 		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.ListInvoice),
@@ -66,13 +66,9 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		options...,
 	)
 
-	// admin routes
-	r.Methods(http.MethodPost).Path("/create_invoice").Handler(createInvoiceHandler)
-	r.Methods(http.MethodPatch).Path("/update_invoice/{id}").Handler(updateInvoiceHandler)
+	r.Methods(http.MethodPost).Path("/invoice").Handler(createInvoiceHandler)
+	r.Methods(http.MethodPatch).Path("/invoice/{id}").Handler(updateInvoiceHandler)
 	r.Methods(http.MethodDelete).Path("/invoice/{id}").Handler(deleteInvoiceHandler)
-
-	// common routes
-	r.Methods(http.MethodGet).Path("/invoice/{id}").Handler(getInvoiceHandler)
 	r.Methods(http.MethodGet).Path("/invoice").Handler(listInvoiceHandler)
 
 	return r
@@ -84,8 +80,6 @@ type errorer interface {
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	if e, ok := response.(errorer); ok && e.error() != nil {
-		// Not a Go kit transport error, but a business-logic error.
-		// Provide those as HTTP errors.
 		encodeError(ctx, e.error(), w)
 		return nil
 	}
@@ -115,19 +109,18 @@ func decodeCreateInvoiceReq(ctx context.Context, req *http.Request) (interface{}
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		return nil, err
 	}
-
 	return request, nil
 }
 
-func decodeGetInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	var request model.GetInvoiceRequest
+// func decodeGetInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
+// 	var request model.GetInvoiceRequest
 
-	query := req.URL.Query()
-	invoice_id := query.Get("id")
-	request.Id = invoice_id
+// 	query := req.URL.Query()
+// 	invoice_id := query.Get("id")
+// 	request.Id = invoice_id
 
-	return request, nil
-}
+// 	return request, nil
+// }
 
 func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
 	var invoiceFilter = model.InvoiceFilter{
@@ -146,7 +139,7 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	if userId != "" {
 		userId, err := strconv.Atoi(userId)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid user id provided in query params")
+			return nil, fmt.Errorf("invalid user id provided in query params")
 		}
 		invoiceFilter.UserId = userId
 	}
@@ -155,7 +148,7 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	if adminId != "" {
 		adminId, err := strconv.Atoi(adminId)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid admin id provided in query params")
+			return nil, fmt.Errorf("invalid admin id provided in query params")
 		}
 		invoiceFilter.AdminId = adminId
 	}
@@ -164,7 +157,7 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	if paid != "" {
 		paid, err := strconv.ParseFloat(paid, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid paid amount provided in query params")
+			return nil, fmt.Errorf("invalid paid amount provided in query params")
 		}
 		invoiceFilter.Paid = paid
 	}
@@ -173,7 +166,7 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	if paymentStatus != "" {
 		paymentStatus, err := strconv.Atoi(paymentStatus)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid paymentStatus amount provided in query params")
+			return nil, fmt.Errorf("invalid paymentStatus amount provided in query params")
 		}
 		invoiceFilter.PaymentStatus = paymentStatus
 	}
@@ -194,31 +187,26 @@ func decodeDeleteInvoiceReq(ctx context.Context, req *http.Request) (interface{}
 
 	invoiceId, ok := mux.Vars(req)["id"]
 	if !ok {
-		return nil, fmt.Errorf("Invoice id not found in url path")
+		return nil, fmt.Errorf("invoice id not found in url path")
 	}
 
 	return invoiceId, nil
 }
 
 func decodeUpdateInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	var request model.UpdateInvoiceRequest
+	var request = model.UpdateInvoiceRequest{
+		Paid:          -1,
+		PaymentStatus: -1,
+	}
 	invoiceId, ok := mux.Vars(req)["id"]
 	if !ok {
-		return nil, fmt.Errorf("Invoice id not found in url path")
+		return nil, fmt.Errorf("invoice id not found in url path")
 	}
 
-	if err := json.NewDecoder(req.Body).Decode(&request.Invoice); err != nil {
-		return nil, err
-	}
-
-	request.Invoice.Id = invoiceId
-	return request, nil
-}
-
-func decodeCreateUserRequest(ctx context.Context, req *http.Request) (interface{}, error) {
-	var request model.CreateUserRequest
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		return nil, err
 	}
+
+	request.Id = invoiceId
 	return request, nil
 }

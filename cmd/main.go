@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		panic("can't connect to Postgres")
 	}
-	logger.Log("The database is connected")
+	logger.Log("debug", "The database is connected")
 
 	// initate repository
 	var repository = inithandler.InitRepository(db)
@@ -52,10 +52,10 @@ func main() {
 
 	router = user.NewHTTPHandler(ctx, logger, router, userEndpoints)
 	// start the server
-	logger.Log("Starting the server on port", config.WebPort)
+	logger.Log("debug", "Starting the server on ", "port", config.WebPort)
 	err = http.ListenAndServe(fmt.Sprintf(":%d", config.WebPort), router)
 	if err != nil {
-		logger.Log(err)
+		panic(err)
 	}
 
 }

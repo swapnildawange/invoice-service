@@ -12,4 +12,4 @@ migrate create -ext sql -dir db/migration -seq init_schema
 need to update only one field from multiple fields added in update query
 
 
-can we add email in users table
+can we add email in users table ? 

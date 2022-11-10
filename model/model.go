@@ -73,7 +73,10 @@ type GetInvoiceRequest struct {
 }
 
 type UpdateInvoiceRequest struct {
-	Invoice
+	Id            string    `json:"invoice_id"`
+	Paid          float64   `json:"paid"`
+	PaymentStatus int       `json:"payment_status"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type CreateUserRequest struct {

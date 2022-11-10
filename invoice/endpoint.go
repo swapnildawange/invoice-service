@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"invoice_service/model"
 	"invoice_service/security"
+	"time"
 
 	gokitjwt "github.com/go-kit/kit/auth/jwt"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 type Endpoints struct {
@@ -25,12 +26,19 @@ func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 		GetInvoice:    makeGetInvoice(logger, bl),
 		ListInvoice:   makeListInvoice(logger, bl),
 		UpdateInvoice: makeUpdateInvoice(logger, bl),
-		DeleteInvoice: makeDeleteEndpoint(logger, bl),
+		DeleteInvoice: makeDeleteInvoiceEndpoint(logger, bl),
 	}
 }
 
 func makeCreateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		defer func(begin time.Time) {
+			logger.Log(
+				"method", "createInvoice",
+				"took", time.Since(begin),
+			)
+		}(time.Now())
+
 		var (
 			req              model.CreateInvoiceRequest
 			createInvoiceRes model.Invoice
@@ -58,6 +66,13 @@ func makeCreateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 
 func makeGetInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		defer func(begin time.Time) {
+			logger.Log(
+				"method", "getInvoice",
+				"took", time.Since(begin),
+			)
+		}(time.Now())
+
 		var (
 			invoice       model.Invoice
 			getInvoiceReq model.GetInvoiceRequest
@@ -74,6 +89,13 @@ func makeGetInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 
 func makeListInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		defer func(begin time.Time) {
+			logger.Log(
+				"method", "listInvoice",
+				"took", time.Since(begin),
+			)
+		}(time.Now())
+
 		var (
 			invoices      []model.Invoice
 			invoiceFilter model.InvoiceFilter
@@ -90,6 +112,13 @@ func makeListInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 
 func makeUpdateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		defer func(begin time.Time) {
+			logger.Log(
+				"method", "updateInvoice",
+				"took", time.Since(begin),
+			)
+		}(time.Now())
+
 		var (
 			req     model.UpdateInvoiceRequest
 			invoice model.Invoice
@@ -113,8 +142,15 @@ func makeUpdateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	}
 }
 
-func makeDeleteEndpoint(logger log.Logger, bl BL) endpoint.Endpoint {
+func makeDeleteInvoiceEndpoint(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		defer func(begin time.Time) {
+			logger.Log(
+				"method", "deleteInvoice",
+				"took", time.Since(begin),
+			)
+		}(time.Now())
+
 		var (
 			invoiceId string
 		)
@@ -133,6 +169,6 @@ func makeDeleteEndpoint(logger log.Logger, bl BL) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		return fmt.Sprintf("Invoice deleted"), nil
+		return "Invoice deleted", nil
 	}
 }

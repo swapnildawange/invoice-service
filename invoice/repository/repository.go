@@ -46,7 +46,7 @@ func (repo *repository) CreateInvoice(ctx context.Context, createInvoiceReq mode
 	}()
 
 	if err != nil {
-		return invoice, fmt.Errorf("Failed to begin transaction", err.Error())
+		return invoice, fmt.Errorf("failed to begin transaction %v", err.Error())
 	}
 
 	insertQuery := `insert into "invoice"("id","user_id","admin_id","paid","payment_status","created_at","updated_at")
@@ -59,7 +59,7 @@ func (repo *repository) CreateInvoice(ctx context.Context, createInvoiceReq mode
 
 	err = tx.Commit()
 	if err != nil {
-		return invoice, fmt.Errorf("Failed to commit transaction", err.Error())
+		return invoice, fmt.Errorf("failed to commit transaction %v", err.Error())
 	}
 
 	invoice.Id = createInvoiceReq.Id
@@ -92,7 +92,7 @@ func (repo *repository) ListInvoice(ctx context.Context, invoiceFilter model.Inv
 	for rows.Next() {
 		var invoice model.Invoice
 		if err := rows.Scan(&invoice.Id, &invoice.UserId, &invoice.AdminId, &invoice.Paid, &invoice.PaymentStatus, &invoice.CreatedAt, &invoice.UpdatedAt); err != nil {
-			return invoices, fmt.Errorf("Failed to scan ", err.Error())
+			return invoices, fmt.Errorf("failed to scan %v", err.Error())
 		}
 		invoices = append(invoices, invoice)
 	}
@@ -138,7 +138,6 @@ func (repo *repository) queryInvoiceWithFilter(query string, filter model.Invoic
 	}
 
 	return query, filterValues
-
 }
 
 func (repo *repository) GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error) {
@@ -158,8 +157,33 @@ func (repo *repository) GetInvoice(ctx context.Context, invoiceId string) (model
 }
 
 func (repo *repository) EditInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) error {
-	var err error
-	_, err = repo.db.ExecContext(ctx, `update invoice set paid = $1 ,payment_status =$2 ,updated_at=$3 where id=$4`, updateInvoiceReq.Paid, updateInvoiceReq.PaymentStatus, time.Now(), updateInvoiceReq.Id)
+	var (
+		err    error
+		values []interface{}
+	)
+
+	updateQuery := `UPDATE invoice SET `
+
+	if updateInvoiceReq.Paid != -1 {
+		values = append(values, updateInvoiceReq.Paid)
+		updateQuery += ` paid = $` + strconv.Itoa(len(values)) + ` , `
+	}
+
+	if updateInvoiceReq.PaymentStatus != -1 {
+		values = append(values, updateInvoiceReq.PaymentStatus)
+		updateQuery += ` payment_status = $` + strconv.Itoa(len(values)) + ` , `
+	}
+
+	values = append(values, time.Now())
+	updateQuery += ` updated_at = $` + strconv.Itoa(len(values)) + ` , `
+
+	values = append(values, updateInvoiceReq.Id)
+	updateQuery += `WHERE id = $` + strconv.Itoa(len(values))
+
+	updateQuery = strings.Replace(updateQuery, ", WHERE", "WHERE", 1)
+	fmt.Println(updateQuery, values)
+
+	_, err = repo.db.ExecContext(ctx, updateQuery, values...)
 	if err != nil {
 		return err
 	}
@@ -180,16 +204,16 @@ func (repo *repository) DeleteInvoice(ctx context.Context, invoiceId string) err
 	}()
 
 	if err != nil {
-		return fmt.Errorf("Failed to begin transaction", err.Error())
+		return fmt.Errorf("failed to begin transaction %v", err.Error())
 	}
 
 	_, err = tx.ExecContext(ctx, "delete from invoice where id = $1", invoiceId)
 	if err != nil {
-		return fmt.Errorf("Failed to delete invoice", err.Error())
+		return fmt.Errorf("failed to delete invoice %v", err.Error())
 	}
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("Failed to commit transaction", err.Error())
+		return fmt.Errorf("failed to commit transaction %v", err.Error())
 	}
 	return nil
 }

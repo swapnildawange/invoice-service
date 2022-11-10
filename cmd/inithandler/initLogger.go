@@ -7,7 +7,8 @@ import (
 )
 
 func InitLogger() log.Logger {
-	logger := log.NewLogfmtLogger(os.Stderr)
+	w := log.NewSyncWriter(os.Stderr)
+	logger := log.NewLogfmtLogger(w)
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 	logger = log.With(logger, "method=", log.DefaultCaller)
 	return logger

@@ -37,7 +37,8 @@ func (bl *bl) CreateUser(ctx context.Context, createUserReq model.CreateUserRequ
 	// hash password
 	hashedPassword, err := security.HashPassword(createUserReq.Password)
 	if err != nil {
-		bl.logger.Log("CreateUser", "Failed to hash password", err.Error())
+		bl.logger.Log("[debug]", "Failed to hash password", "err", err.Error())
+		return user, err
 	}
 
 	createUserReq.CreatedAt = time.Now()
@@ -46,17 +47,17 @@ func (bl *bl) CreateUser(ctx context.Context, createUserReq model.CreateUserRequ
 
 	userId, err := bl.repo.CreateUser(ctx, createUserReq)
 	if err != nil {
-		bl.logger.Log(err.Error())
+		bl.logger.Log("[debug]", fmt.Errorf("failed to create user with email %v error %w", createUserReq.Email, err))
 		return user, err
 	}
 
 	user, err = bl.repo.GetUser(ctx, userId)
 	if err != nil {
-		bl.logger.Log("Faild to get user details", err)
+		bl.logger.Log("[debug]", fmt.Errorf("failed to get user details for %v %w", user.Id, err))
 		return user, err
 	}
 	user.Email = createUserReq.Email
-	bl.logger.Log("User created successfully")
+	bl.logger.Log("[debug]", "Created user successfully", "UserID", user.Id)
 	return user, nil
 }
 
@@ -68,23 +69,24 @@ func (bl *bl) Login(ctx context.Context, loginReq model.LoginRequest) (model.Use
 		err            error
 		token          string
 	)
+
 	// get user details from auth table using email
 	userId, hashedPassword, err = bl.repo.GetUserFromAuth(ctx, loginReq.Email)
 	if err != nil {
-		bl.logger.Log("Failed to login user", err.Error())
+		bl.logger.Log("[debug]", "Failed to login user", "err", err.Error())
 		return user, token, err
 	}
 
 	err = security.CheckPasswordHash(loginReq.Password, hashedPassword)
 	if err != nil {
-		bl.logger.Log("Failed to login", err)
+		bl.logger.Log("[debug]", "Failed to login", "err", err.Error())
 		return user, token, err
 	}
 
 	// get user details
 	user, err = bl.repo.GetUser(ctx, userId)
 	if err != nil {
-		bl.logger.Log("Faild to get user details", err)
+		bl.logger.Log("[debug]", "Faild to get user details", "err", err.Error())
 		return user, token, err
 	}
 	user.Email = loginReq.Email
@@ -92,7 +94,7 @@ func (bl *bl) Login(ctx context.Context, loginReq model.LoginRequest) (model.Use
 	// generate jwt token
 	token, err = security.GenerateJWT("mysecret", userId, user.Role)
 	if err != nil {
-		bl.logger.Log("Failed to generate jwt token", err)
+		bl.logger.Log("[debug]", "Failed to generate jwt token", "err", err.Error())
 		return user, token, err
 	}
 	return user, token, nil
@@ -105,7 +107,7 @@ func (bl *bl) ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([
 	)
 	users, err = bl.repo.ListUsers(ctx, listUserFilter)
 	if err != nil {
-		bl.logger.Log("Failed to get list of users", err.Error())
+		bl.logger.Log("[debug]", "Failed to get list of users", "err", err.Error())
 		return users, err
 	}
 	return users, nil
@@ -114,8 +116,8 @@ func (bl *bl) ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([
 func (bl *bl) DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) (string, error) {
 	err := bl.repo.DeleteUser(ctx, deleteUserReq)
 	if err != nil {
-		bl.logger.Log("Failed to delete user", err.Error())
-		return "", fmt.Errorf("Failed to delete user")
+		bl.logger.Log("[debug]", "Failed to delete user", "err", err.Error())
+		return "", fmt.Errorf("failed to delete user %w", err)
 	}
 	return "Deleted user Successfully", nil
 }
@@ -124,8 +126,8 @@ func (bl *bl) EditUser(ctx context.Context, editUserReq model.EditUserRequest) (
 
 	editedUser, err := bl.repo.EditUser(ctx, editUserReq)
 	if err != nil {
-		bl.logger.Log("bl", "Failed to edit user", err.Error())
-		return editedUser, fmt.Errorf("Failed to edit user")
+		bl.logger.Log("[debug]", "Failed to edit user", "err", err.Error())
+		return editedUser, fmt.Errorf("failed to edit user %w", err)
 	}
 	return editedUser, nil
 }
