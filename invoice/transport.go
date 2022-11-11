@@ -66,10 +66,10 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		options...,
 	)
 
-	r.Methods(http.MethodPost).Path("/invoice").Handler(createInvoiceHandler)
-	r.Methods(http.MethodPatch).Path("/invoice/{id}").Handler(updateInvoiceHandler)
-	r.Methods(http.MethodDelete).Path("/invoice/{id}").Handler(deleteInvoiceHandler)
-	r.Methods(http.MethodGet).Path("/invoice").Handler(listInvoiceHandler)
+	r.Methods(http.MethodPost).Path(CreateInvoiceRequestPath).Handler(createInvoiceHandler)
+	r.Methods(http.MethodPatch).Path(EditInvoiceRequestPath).Handler(updateInvoiceHandler)
+	r.Methods(http.MethodDelete).Path(DeleteInvoiceRequestPath).Handler(deleteInvoiceHandler)
+	r.Methods(http.MethodGet).Path(ListInvoiceRequestPath).Handler(listInvoiceHandler)
 
 	return r
 }

@@ -1,5 +1,10 @@
 package user
 
 const (
-	CreateUserRequestPath = "/user"
+	CreateUserRequestPath  = "/user"
+	ListUsersRequestPath   = "/users"
+	EditUserRequestPath    = "/user/{id}"
+	DeleteUserRequestPath  = "/user/{id}"
+	LoginRequestPath       = "/login"
+	GenerateJWTRequestPath = "/generate_token"
 )

@@ -74,12 +74,12 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 	)
 
 	r.Methods(http.MethodPost).Path(CreateUserRequestPath).Handler(createUserHandler)
-	r.Methods(http.MethodGet).Path("/users").Handler(listUsersHandler)
-	r.Methods(http.MethodPatch).Path("/user/{id}").Handler(editUserHandler)
-	r.Methods(http.MethodDelete).Path("/user/{id}").Handler(deleteUserHandler)
+	r.Methods(http.MethodGet).Path(ListUsersRequestPath).Handler(listUsersHandler)
+	r.Methods(http.MethodPatch).Path(EditUserRequestPath).Handler(editUserHandler)
+	r.Methods(http.MethodDelete).Path(DeleteUserRequestPath).Handler(deleteUserHandler)
 
-	r.Methods(http.MethodPost).Path("/login").Handler(loginHandler)
-	r.Methods(http.MethodPost).Path("/generate_token").Handler(jwtTokenHandler)
+	r.Methods(http.MethodPost).Path(LoginRequestPath).Handler(loginHandler)
+	r.Methods(http.MethodPost).Path(GenerateJWTRequestPath).Handler(jwtTokenHandler)
 
 	return r
 }
@@ -217,5 +217,3 @@ func decodeEditUserReq(ctx context.Context, req *http.Request) (interface{}, err
 	}
 	return request, nil
 }
-
-
