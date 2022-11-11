@@ -25,9 +25,9 @@ pipeline {
             }
         }
     }
-    post {
-        always {
-            "go version"
-        }
-    }
+    // post {
+    //     always {
+    //         "go version"
+    //     }
+    // }
 }   
