@@ -41,9 +41,5 @@ pipeline {
             }
         }
     }
-    // post {
-    //     always {
-    //         "go version"
-    //     }
-    // }
+ 
 }   
