@@ -1,10 +1,33 @@
 pipeline {
-    agent { docker { image 'golang:1.19.1-alpine' } }
+    agent any 
     stages {
-        stage('build') {
+        stage('Checkout Codebase') {
             steps {
-                sh 'go version'
+                checkout scm : [$class: 'GitSCM',branches:[[name:'*/develop']],
+                userRemoteConfigs:[[credentialsId:'github-ssh-key',url:"git@github.com:swapnildawange/invoice-service.git"]]]
             }
+        }
+        stage('Build'){
+            steps{
+                echo 'Building CodeBase'
+            }
+        }
+
+        stage('Test'){
+            steps{
+                echo 'Running Tests on changes'
+            }
+        }
+
+        stage('Deploy'){
+            steps{
+                echo 'Done!'
+            }
+        }
+    }
+    post {
+        always {
+            "go version"
         }
     }
 }   
