@@ -8,13 +8,11 @@ WORKDIR /app
 
 RUN  CGO_ENABLED=0 && go build -o invoiceApp ./cmd
 
-RUN chmod +x /app/invoiceApp
-
 # build a tiny docker image
 FROM alpine:latest
 
 RUN mkdir /app
-
+WORKDIR /app
 COPY invoiceApp /app
-
-CMD [ "/app/invoiceApp"]
+RUN ls
+ENTRYPOINT [ "/app/invoiceApp" ]

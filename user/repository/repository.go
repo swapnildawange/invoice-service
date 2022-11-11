@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+//go:generate  mockgen -destination=../mocks/repository.mock.go -package=mocks invoice_service/user/repository Repository
 type Repository interface {
 	CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (int, error)
 	ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error)

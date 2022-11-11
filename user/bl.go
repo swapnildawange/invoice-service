@@ -12,6 +12,7 @@ import (
 	"github.com/go-kit/kit/log"
 )
 
+//go:generate  mockgen -destination=mocks/bl.mock.go -package=mocks invoice_service/user BL
 type BL interface {
 	CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (model.User, error)
 	ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error)
@@ -40,7 +41,7 @@ func (bl *bl) CreateUser(ctx context.Context, createUserReq model.CreateUserRequ
 		bl.logger.Log("[debug]", "Failed to hash password", "err", err.Error())
 		return user, err
 	}
-
+	
 	createUserReq.CreatedAt = time.Now()
 	createUserReq.UpdatedAt = time.Now()
 	createUserReq.Password = hashedPassword

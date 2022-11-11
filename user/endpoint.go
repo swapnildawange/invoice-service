@@ -76,6 +76,7 @@ func makeCreateUser(logger log.Logger, bl BL) endpoint.Endpoint {
 			req  model.CreateUserRequest
 			user model.User
 		)
+
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
 			logger.Log("[debug]", "Invalid JWT token")
