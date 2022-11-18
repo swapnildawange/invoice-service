@@ -2,9 +2,9 @@ package invoice
 
 import (
 	"context"
-	"fmt"
-	"invoice_service/model"
 	"invoice_service/security"
+	"invoice_service/spec"
+	"invoice_service/svcerror"
 	"time"
 
 	gokitjwt "github.com/go-kit/kit/auth/jwt"
@@ -40,25 +40,25 @@ func makeCreateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 		}(time.Now())
 
 		var (
-			req              model.CreateInvoiceRequest
-			createInvoiceRes model.Invoice
+			req              spec.CreateInvoiceRequest
+			createInvoiceRes spec.Invoice
 		)
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
-			return nil, fmt.Errorf("invalid jwt token")
+			return nil, svcerror.ErrInvalidToken
 		}
 
-		if JWTClaims.Role == 2 {
-			return nil, security.NotAuthorizedErr
+		if JWTClaims.Role == int(spec.RoleUser) {
+			return nil, svcerror.ErrNotAuthorized
 		}
 
-		req = request.(model.CreateInvoiceRequest)
+		req = request.(spec.CreateInvoiceRequest)
 		// admin id
 		req.AdminId = JWTClaims.Id
 
 		createInvoiceRes, err = bl.CreateInvoice(ctx, req)
 		if err != nil {
-			return nil, err
+			return nil, svcerror.ErrFailedToCreateInvoice
 		}
 		return createInvoiceRes, nil
 	}
@@ -74,14 +74,14 @@ func makeGetInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 		}(time.Now())
 
 		var (
-			invoice       model.Invoice
-			getInvoiceReq model.GetInvoiceRequest
+			invoice       spec.Invoice
+			getInvoiceReq spec.GetInvoiceRequest
 		)
 
-		getInvoiceReq = request.(model.GetInvoiceRequest)
+		getInvoiceReq = request.(spec.GetInvoiceRequest)
 		invoice, err = bl.GetInvoice(ctx, getInvoiceReq.Id)
 		if err != nil {
-			return nil, err
+			return nil, svcerror.ErrFailedToGetInvoice
 		}
 		return invoice, nil
 	}
@@ -97,14 +97,14 @@ func makeListInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 		}(time.Now())
 
 		var (
-			invoices      []model.Invoice
-			invoiceFilter model.InvoiceFilter
+			invoices      []spec.Invoice
+			invoiceFilter spec.InvoiceFilter
 		)
 
-		invoiceFilter = request.(model.InvoiceFilter)
+		invoiceFilter = request.(spec.InvoiceFilter)
 		invoices, err = bl.ListInvoice(ctx, invoiceFilter)
 		if err != nil {
-			return nil, err
+			return nil, svcerror.ErrFailedToListInvoice
 		}
 		return invoices, nil
 	}
@@ -120,23 +120,24 @@ func makeUpdateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 		}(time.Now())
 
 		var (
-			req     model.UpdateInvoiceRequest
-			invoice model.Invoice
+			req     spec.UpdateInvoiceRequest
+			invoice spec.Invoice
 		)
 
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
-			return nil, fmt.Errorf("invalid jwt token")
+			return nil, svcerror.ErrInvalidToken
+
 		}
 
-		if JWTClaims.Role == 2 {
-			return nil, security.NotAuthorizedErr
+		if JWTClaims.Role == int(spec.RoleUser) {
+			return nil, svcerror.ErrNotAuthorized
 		}
 
-		req = request.(model.UpdateInvoiceRequest)
+		req = request.(spec.UpdateInvoiceRequest)
 		invoice, err = bl.UpdateInvoice(ctx, req)
 		if err != nil {
-			return nil, err
+			return nil, svcerror.ErrFailedToUpdateInvoice
 		}
 		return invoice, nil
 	}
@@ -151,23 +152,21 @@ func makeDeleteInvoiceEndpoint(logger log.Logger, bl BL) endpoint.Endpoint {
 			)
 		}(time.Now())
 
-		var (
-			invoiceId string
-		)
+		var invoiceId string
 
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
-			return nil, fmt.Errorf("invalid jwt token")
+			return nil, svcerror.ErrInvalidToken
 		}
 
-		if JWTClaims.Role == 2 {
-			return nil, security.NotAuthorizedErr
+		if JWTClaims.Role == int(spec.RoleUser) {
+			return nil, svcerror.ErrNotAuthorized
 		}
 
 		invoiceId = request.(string)
 		err = bl.DeleteInvoice(ctx, invoiceId)
 		if err != nil {
-			return nil, err
+			return nil, svcerror.ErrFailedToDeleteInvoice
 		}
 		return "Invoice deleted", nil
 	}

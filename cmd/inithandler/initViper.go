@@ -1,7 +1,7 @@
 package inithandler
 
 import (
-	"invoice_service/model"
+	"invoice_service/spec"
 	"log"
 
 	"github.com/spf13/viper"
@@ -26,8 +26,10 @@ func InitViper() {
 }
 
 // LoadConfig reads configuration from file or environment variables.
-func LoadConfig(path string) (config model.Config, err error) {
+func LoadConfig(path string) (config spec.Config, err error) {
 	viper.AddConfigPath(path)
+	viper.AddConfigPath("/app")
+	viper.AddConfigPath("/app/env") //for use in docker
 	viper.SetConfigName("env")
 	viper.SetConfigType("env")
 

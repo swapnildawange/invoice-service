@@ -2,7 +2,7 @@ package user
 
 import (
 	"context"
-	"invoice_service/model"
+	"invoice_service/spec"
 	"invoice_service/utils"
 	"io"
 	"net/http"
@@ -63,7 +63,7 @@ func Test_decodeCreateUserRequest(t *testing.T) {
 				ctx: context.Background(),
 				req: mockValidRequest,
 			},
-			want: model.CreateUserRequest{
+			want: spec.CreateUserRequest{
 				Email:     defaultEmail,
 				FirstName: defaultFirstName,
 				LastName:  defaultLastName,

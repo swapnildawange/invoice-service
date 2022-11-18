@@ -1,2 +1,3 @@
 WEBPORT=8080
 JWTSECRET=mysecret
+DSN=host=postgres port=5432 user=postgres password=password dbname=invoicing sslmode=disable timezone=UTC connect_timeout=5

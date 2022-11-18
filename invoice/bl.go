@@ -6,17 +6,17 @@ import (
 	"time"
 
 	"invoice_service/invoice/repository"
-	"invoice_service/model"
+	"invoice_service/spec"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/google/uuid"
 )
 
 type BL interface {
-	CreateInvoice(ctx context.Context, createInvoiceReq model.CreateInvoiceRequest) (model.Invoice, error)
-	GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error)
-	ListInvoice(ctx context.Context, invoiceFilter model.InvoiceFilter) ([]model.Invoice, error)
-	UpdateInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) (model.Invoice, error)
+	CreateInvoice(ctx context.Context, createInvoiceReq spec.CreateInvoiceRequest) (spec.Invoice, error)
+	GetInvoice(ctx context.Context, invoiceId string) (spec.Invoice, error)
+	ListInvoice(ctx context.Context, invoiceFilter spec.InvoiceFilter) ([]spec.Invoice, error)
+	UpdateInvoice(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) (spec.Invoice, error)
 	DeleteInvoice(ctx context.Context, invoiceId string) error
 }
 
@@ -26,15 +26,15 @@ type bl struct {
 }
 
 func NewBL(logger log.Logger, repo repository.Repository) BL {
-	return &bl{
+	return bl{
 		logger: logger,
 		repo:   repo,
 	}
 }
 
-func (bl *bl) CreateInvoice(ctx context.Context, createInvoiceReq model.CreateInvoiceRequest) (model.Invoice, error) {
+func (bl bl) CreateInvoice(ctx context.Context, createInvoiceReq spec.CreateInvoiceRequest) (spec.Invoice, error) {
 	var (
-		invoice model.Invoice
+		invoice spec.Invoice
 		err     error
 	)
 	createInvoiceReq.Id = uuid.NewString()
@@ -46,7 +46,7 @@ func (bl *bl) CreateInvoice(ctx context.Context, createInvoiceReq model.CreateIn
 		return invoice, fmt.Errorf("user id and admin id cant be same")
 	}
 
-	invoice, err = bl.repo.CreateInvoice(ctx, createInvoiceReq)
+	invoice, err = bl.repo.Create(ctx, createInvoiceReq)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to create invoice ", "err", err.Error())
 		return invoice, fmt.Errorf("failed to create invoice %v", err.Error())
@@ -55,12 +55,12 @@ func (bl *bl) CreateInvoice(ctx context.Context, createInvoiceReq model.CreateIn
 	return invoice, nil
 }
 
-func (bl *bl) GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error) {
+func (bl bl) GetInvoice(ctx context.Context, invoiceId string) (spec.Invoice, error) {
 	var (
-		invoice model.Invoice
+		invoice spec.Invoice
 		err     error
 	)
-	invoice, err = bl.repo.GetInvoice(ctx, invoiceId)
+	invoice, err = bl.repo.Get(ctx, invoiceId)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to get invoice ", "err", err.Error())
 		return invoice, err
@@ -69,12 +69,12 @@ func (bl *bl) GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, 
 	return invoice, nil
 }
 
-func (bl *bl) ListInvoice(ctx context.Context, invoiceFilter model.InvoiceFilter) ([]model.Invoice, error) {
+func (bl bl) ListInvoice(ctx context.Context, invoiceFilter spec.InvoiceFilter) ([]spec.Invoice, error) {
 	var (
-		invoices []model.Invoice
+		invoices []spec.Invoice
 		err      error
 	)
-	invoices, err = bl.repo.ListInvoice(ctx, invoiceFilter)
+	invoices, err = bl.repo.List(ctx, invoiceFilter)
 	if err != nil {
 		return invoices, err
 	}
@@ -85,18 +85,18 @@ func (bl *bl) ListInvoice(ctx context.Context, invoiceFilter model.InvoiceFilter
 	return invoices, nil
 }
 
-func (bl *bl) UpdateInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) (model.Invoice, error) {
+func (bl bl) UpdateInvoice(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) (spec.Invoice, error) {
 	var (
-		invoice model.Invoice
+		invoice spec.Invoice
 		err     error
 	)
-	err = bl.repo.EditInvoice(ctx, updateInvoiceReq)
+	err = bl.repo.Edit(ctx, updateInvoiceReq)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to update invoice", "err", err.Error())
 		return invoice, err
 	}
 
-	invoice, err = bl.repo.GetInvoice(ctx, updateInvoiceReq.Id)
+	invoice, err = bl.repo.Get(ctx, updateInvoiceReq.Id)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to get updated invoice", "err", err.Error())
 		return invoice, err
@@ -105,8 +105,8 @@ func (bl *bl) UpdateInvoice(ctx context.Context, updateInvoiceReq model.UpdateIn
 	return invoice, nil
 }
 
-func (bl *bl) DeleteInvoice(ctx context.Context, invoiceId string) error {
-	err := bl.repo.DeleteInvoice(ctx, invoiceId)
+func (bl bl) DeleteInvoice(ctx context.Context, invoiceId string) error {
+	err := bl.repo.Delete(ctx, invoiceId)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to delete invoice", "err", err.Error())
 		return err

@@ -2,9 +2,9 @@ package user
 
 import (
 	"context"
-	"fmt"
-	"invoice_service/model"
 	"invoice_service/security"
+	"invoice_service/spec"
+	"invoice_service/svcerror"
 	"time"
 
 	gokitjwt "github.com/go-kit/kit/auth/jwt"
@@ -35,18 +35,17 @@ func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 
 func makeLoginHandler(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		loginReq, ok := request.(model.LoginRequest)
+		loginReq, ok := request.(spec.LoginRequest)
 		if !ok {
-			logger.Log("[debug]", "Invalid login request")
-			return nil, fmt.Errorf("invalid login request")
+			logger.Log("[debug]", svcerror.ErrInvalidRequest)
+			return nil, svcerror.ErrInvalidRequest
 		}
-
 		user, token, err := bl.Login(ctx, loginReq)
 		if err != nil {
-			return user, err
+			return user, svcerror.ErrLoginFailed
 		}
 
-		return model.LoginResponse{
+		return spec.LoginResponse{
 			User:  user,
 			Token: token,
 		}, nil
@@ -57,7 +56,7 @@ func makeGenerateJWT(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		token, err := security.GenerateJWT(viper.GetString("JWTSECRET"), 1, 1)
 		if err != nil {
-			return "", err
+			return "", svcerror.ErrFailedToGenerateJWT
 		}
 		return token, nil
 	}
@@ -73,28 +72,28 @@ func makeCreateUser(logger log.Logger, bl BL) endpoint.Endpoint {
 		}(time.Now())
 
 		var (
-			req  model.CreateUserRequest
-			user model.User
+			req  spec.CreateUserRequest
+			user spec.User
 		)
 
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
 			logger.Log("[debug]", "Invalid JWT token")
-			return nil, fmt.Errorf("invalid jwt token")
+			return nil, svcerror.ErrInvalidToken
 		}
-		if JWTClaims.Role == 2 {
-			return nil, security.NotAuthorizedErr
+		if JWTClaims.Role == int(spec.RoleUser) {
+			return nil, svcerror.ErrNotAuthorized
 		}
 
-		req = request.(model.CreateUserRequest)
+		req = request.(spec.CreateUserRequest)
 		if err != nil {
 			logger.Log("[debug]", "invalid request for create user", "err", err)
-			return nil, err
+			return nil, svcerror.ErrInvalidRequest
 		}
 		user, err = bl.CreateUser(ctx, req)
 		if err != nil {
 			logger.Log("[debug]", err)
-			return nil, err
+			return nil, svcerror.ErrFailedToCreateUser
 		}
 		return user, nil
 	}
@@ -111,19 +110,19 @@ func makeListUsers(logger log.Logger, bl BL) endpoint.Endpoint {
 
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
-			return nil, fmt.Errorf("invalid jwt token")
+			return nil, svcerror.ErrInvalidToken
 		}
 
-		if JWTClaims.Role == 2 {
-			return nil, security.NotAuthorizedErr
+		if JWTClaims.Role == int(spec.RoleUser) {
+			return nil, svcerror.ErrNotAuthorized
 		}
 
-		req := request.(model.UserFilter)
+		req := request.(spec.UserFilter)
 
 		response, err = bl.ListUsers(ctx, req)
 		if err != nil {
 			logger.Log("[debug]", err)
-			return
+			return response, svcerror.ErrFailedToListUsers
 		}
 		return
 
@@ -141,18 +140,18 @@ func makeEditUser(logger log.Logger, bl BL) endpoint.Endpoint {
 
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
-			return nil, fmt.Errorf("invalid jwt token")
+			return nil, svcerror.ErrInvalidToken
 		}
 
-		if JWTClaims.Role == 2 {
-			return nil, security.NotAuthorizedErr
+		if JWTClaims.Role == int(spec.RoleUser) {
+			return nil, svcerror.ErrNotAuthorized
 		}
 
-		editUserReq := request.(model.EditUserRequest)
+		editUserReq := request.(spec.EditUserRequest)
 		user, err := bl.EditUser(ctx, editUserReq)
 		if err != nil {
 			logger.Log("[debug]", err)
-			return nil, err
+			return nil, svcerror.ErrFailedToUpdateUser
 		}
 		return user, nil
 	}
@@ -169,18 +168,18 @@ func makeDeleteUser(logger log.Logger, bl BL) endpoint.Endpoint {
 
 		JWTClaims, ok := ctx.Value(gokitjwt.JWTClaimsContextKey).(*security.CustomClaims)
 		if !ok {
-			return nil, fmt.Errorf("invalid jwt token")
+			return nil, svcerror.ErrInvalidToken
 		}
 
-		if JWTClaims.Role == 2 {
-			return nil, security.NotAuthorizedErr
+		if JWTClaims.Role == int(spec.RoleUser) {
+			return nil, svcerror.ErrNotAuthorized
 		}
 
-		deleteUserReq := request.(model.DeleteUserReq)
+		deleteUserReq := request.(spec.DeleteUserReq)
 		response, err = bl.DeleteUser(ctx, deleteUserReq)
 		if err != nil {
 			logger.Log("[debug]", err)
-			return nil, err
+			return nil, svcerror.ErrFailedToDeleteUser
 		}
 		return response, nil
 	}

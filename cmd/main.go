@@ -16,7 +16,6 @@ import (
 
 func main() {
 	ctx := context.Background()
-
 	// initate viper
 	// inithandler.InitViper()
 	config, err := inithandler.LoadConfig(".")
@@ -27,11 +26,11 @@ func main() {
 	var logger = inithandler.InitLogger()
 
 	// initate db
-	db, err := inithandler.InitDB(logger)
-	if err != nil {
-		panic("can't connect to Postgres")
+	db := inithandler.InitDB(logger)
+	if db != nil {
+		logger.Log("[debug]", "failed to connect to db")
 	}
-	logger.Log("debug", "The database is connected")
+	logger.Log("[debug]", "The database is connected")
 
 	// initate repository
 	var repository = inithandler.InitRepository(db)
@@ -53,9 +52,10 @@ func main() {
 	router = user.NewHTTPHandler(ctx, logger, router, userEndpoints)
 	// start the server
 	logger.Log("debug", "Starting the server on ", "port", config.WebPort)
-	err = http.ListenAndServe(fmt.Sprintf(":%d", config.WebPort), router)
-	if err != nil {
-		panic(err)
-	}
-
+	errs := make(chan error)
+	go func() {
+		logger.Log("transport", "http", "address", config.WebPort, "msg", "listening")
+		errs <- http.ListenAndServe(fmt.Sprintf(":%d", config.WebPort), router)
+	}()
+	logger.Log("terminated", <-errs)
 }

@@ -6,13 +6,23 @@ COPY . /app
 
 WORKDIR /app
 
-RUN  CGO_ENABLED=0 && go build -o invoiceApp ./cmd
+RUN  CGO_ENABLED=0  go build  -o invoiceApp ./cmd
+
+RUN chmod +x /app/invoiceApp
 
 # build a tiny docker image
 FROM alpine:latest
 
 RUN mkdir /app
-WORKDIR /app
-COPY invoiceApp /app
-RUN ls
-ENTRYPOINT [ "/app/invoiceApp" ]
+
+# COPY invoiceApp /app
+COPY  --from=builder /app/invoiceApp /app
+COPY --from=builder /app/env /app
+
+RUN cd /app && ls -al
+
+# RUN cd /app && ls
+# RUN ldd /app/invoiceApp
+# RUN cd /lib64/ld-linux-x86-64.so.2
+
+CMD [ "/app/invoiceApp"]

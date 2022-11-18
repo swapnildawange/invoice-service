@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"invoice_service/model"
+	"invoice_service/spec"
 	"strconv"
 	"strings"
 	"time"
@@ -12,12 +12,12 @@ import (
 
 //go:generate  mockgen -destination=../mocks/repository.mock.go -package=mocks invoice_service/user/repository Repository
 type Repository interface {
-	CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (int, error)
-	ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error)
+	Create(ctx context.Context, createUserReq spec.CreateUserRequest) (int, error)
+	List(ctx context.Context, listUserFilter spec.UserFilter) ([]spec.User, error)
 	GetUserFromAuth(ctx context.Context, email string) (userId int, hashedPassword string, err error)
-	GetUser(ctx context.Context, userId int) (model.User, error)
-	DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) error
-	EditUser(ctx context.Context, editUserReq model.EditUserRequest) (model.User, error)
+	Get(ctx context.Context, userId int) (spec.User, error)
+	Delete(ctx context.Context, deleteUserReq spec.DeleteUserReq) error
+	Edit(ctx context.Context, editUserReq spec.EditUserRequest) (spec.User, error)
 }
 
 type repository struct {
@@ -42,9 +42,9 @@ func (repo *repository) GetUserFromAuth(ctx context.Context, email string) (user
 	return userId, hashedPassword, nil
 }
 
-func (repo *repository) GetUser(ctx context.Context, userId int) (model.User, error) {
+func (repo *repository) Get(ctx context.Context, userId int) (spec.User, error) {
 	var (
-		user model.User
+		user spec.User
 		err  error
 		row  *sql.Row
 	)
@@ -60,7 +60,7 @@ func (repo *repository) GetUser(ctx context.Context, userId int) (model.User, er
 	return user, nil
 }
 
-func (repo *repository) CreateUser(ctx context.Context, createUserReq model.CreateUserRequest) (int, error) {
+func (repo *repository) Create(ctx context.Context, createUserReq spec.CreateUserRequest) (int, error) {
 	var (
 		err    error
 		rows   *sql.Rows
@@ -83,7 +83,7 @@ func (repo *repository) CreateUser(ctx context.Context, createUserReq model.Crea
 	}
 
 	// check if email is already present
-	checkEmailQuery := `select COUNT(*) from auth where email = $1`
+	checkEmailQuery := `select COUNT(id) from auth where email = $1`
 
 	rows, err = tx.QueryContext(ctx, checkEmailQuery, createUserReq.Email)
 	if err != nil {
@@ -129,9 +129,9 @@ func (repo *repository) CreateUser(ctx context.Context, createUserReq model.Crea
 	return userId, nil
 }
 
-func (repo *repository) ListUsers(ctx context.Context, listUserFilter model.UserFilter) ([]model.User, error) {
+func (repo *repository) List(ctx context.Context, listUserFilter spec.UserFilter) ([]spec.User, error) {
 	var (
-		users = make([]model.User, 0)
+		users = make([]spec.User, 0)
 		err   error
 		rows  *sql.Rows
 	)
@@ -145,7 +145,7 @@ func (repo *repository) ListUsers(ctx context.Context, listUserFilter model.User
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var user model.User
+		var user spec.User
 		if err = rows.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
 			return users, err
 		}
@@ -154,7 +154,7 @@ func (repo *repository) ListUsers(ctx context.Context, listUserFilter model.User
 	return users, nil
 }
 
-func (s *repository) queryUsersWithFilter(ctx context.Context, query string, filter model.UserFilter) (string, []interface{}) {
+func (s *repository) queryUsersWithFilter(ctx context.Context, query string, filter spec.UserFilter) (string, []interface{}) {
 	var (
 		filterValues []interface{}
 		count        int
@@ -178,10 +178,10 @@ func (s *repository) queryUsersWithFilter(ctx context.Context, query string, fil
 
 	query += fmt.Sprintf(` ORDER BY %s %s`, filter.SortBy, filter.SortOrder)
 
-	filterValues = append(filterValues, model.PageSize)
+	filterValues = append(filterValues, spec.PageSize)
 	query += ` LIMIT $` + strconv.Itoa(len(filterValues))
 
-	filterValues = append(filterValues, (filter.Page-1)*model.PageSize)
+	filterValues = append(filterValues, (filter.Page-1)*spec.PageSize)
 	query += ` OFFSET $` + strconv.Itoa(len(filterValues))
 
 	if count >= 1 {
@@ -191,7 +191,7 @@ func (s *repository) queryUsersWithFilter(ctx context.Context, query string, fil
 	return query, filterValues
 }
 
-func (repo *repository) DeleteUser(ctx context.Context, deleteUserReq model.DeleteUserReq) error {
+func (repo *repository) Delete(ctx context.Context, deleteUserReq spec.DeleteUserReq) error {
 	var (
 		tx     *sql.Tx
 		err    error
@@ -242,9 +242,9 @@ func (repo *repository) DeleteUser(ctx context.Context, deleteUserReq model.Dele
 	return nil
 }
 
-func (repo *repository) EditUser(ctx context.Context, editUserReq model.EditUserRequest) (model.User, error) {
+func (repo *repository) Edit(ctx context.Context, editUserReq spec.EditUserRequest) (spec.User, error) {
 	var (
-		newUser model.User
+		newUser spec.User
 		values  []interface{}
 		tx      *sql.Tx
 		err     error

@@ -2,7 +2,7 @@ start:
 	@echo "Stopping docker images (if running...)"
 	docker-compose down
 	@echo "Building (when required) and starting docker images..."
-	docker-compose up --build -d
+	docker-compose up --build 
 	@echo "Docker images built and started!"
 	
 stop:

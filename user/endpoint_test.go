@@ -37,8 +37,7 @@ func GetUserBL(t *testing.T) (bm blMocks, bl BL) {
 		repo:   repo,
 	}
 
-	mockDL := mocks.NewMockRepository(ct)
-	bl = NewBL(bm.logger, mockDL)
+	bl = NewBL(bm.logger, repo)
 	return
 }
 
@@ -46,13 +45,13 @@ func GetUserBL(t *testing.T) (bm blMocks, bl BL) {
 
 // 	var (
 // 		ctx           = initContext()
-// 		createUserReq = model.CreateUserRequest{
+// 		createUserReq = spec.CreateUserRequest{
 // 			Email:     defaultEmail,
 // 			FirstName: defaultFirstName,
 // 			LastName:  defaultLastName,
 // 			Role:      defaultRole,
 // 		}
-// 		createUserRes = model.User{
+// 		createUserRes = spec.User{
 // 			Email:     defaultEmail,
 // 			FirstName: defaultFirstName,
 // 			LastName:  defaultLastName,
@@ -62,13 +61,13 @@ func GetUserBL(t *testing.T) (bm blMocks, bl BL) {
 
 // 	type args struct {
 // 		ctx     context.Context
-// 		request model.CreateUserRequest
+// 		request spec.CreateUserRequest
 // 	}
 // 	tests := []struct {
 // 		name        string
 // 		args        args
 // 		prepareTest func(*mocks.MockBL)
-// 		want        model.User
+// 		want        spec.User
 // 		wantErr     bool
 // 	}{
 // 		// Positive

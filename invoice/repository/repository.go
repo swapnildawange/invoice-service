@@ -4,18 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"invoice_service/model"
+	"invoice_service/spec"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type Repository interface {
-	CreateInvoice(ctx context.Context, createInvoiceReq model.CreateInvoiceRequest) (model.Invoice, error)
-	ListInvoice(ctx context.Context, invoiceFilter model.InvoiceFilter) ([]model.Invoice, error)
-	GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error)
-	EditInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) error
-	DeleteInvoice(ctx context.Context, invoiceId string) error
+	Create(ctx context.Context, createInvoiceReq spec.CreateInvoiceRequest) (spec.Invoice, error)
+	List(ctx context.Context, invoiceFilter spec.InvoiceFilter) ([]spec.Invoice, error)
+	Get(ctx context.Context, invoiceId string) (spec.Invoice, error)
+	Edit(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) error
+	Delete(ctx context.Context, invoiceId string) error
 }
 
 type repository struct {
@@ -28,9 +28,9 @@ func NewRepository(db *sql.DB) Repository {
 	}
 }
 
-func (repo *repository) CreateInvoice(ctx context.Context, createInvoiceReq model.CreateInvoiceRequest) (model.Invoice, error) {
+func (repo *repository) Create(ctx context.Context, createInvoiceReq spec.CreateInvoiceRequest) (spec.Invoice, error) {
 	var (
-		invoice model.Invoice
+		invoice spec.Invoice
 		err     error
 		tx      *sql.Tx
 	)
@@ -73,9 +73,9 @@ func (repo *repository) CreateInvoice(ctx context.Context, createInvoiceReq mode
 	return invoice, nil
 }
 
-func (repo *repository) ListInvoice(ctx context.Context, invoiceFilter model.InvoiceFilter) ([]model.Invoice, error) {
+func (repo *repository) List(ctx context.Context, invoiceFilter spec.InvoiceFilter) ([]spec.Invoice, error) {
 	var (
-		invoices = make([]model.Invoice, 0)
+		invoices = make([]spec.Invoice, 0)
 	)
 
 	listInvoiceQUery := `select id,user_id,admin_id,paid,payment_status,created_at,updated_at from invoice `
@@ -90,7 +90,7 @@ func (repo *repository) ListInvoice(ctx context.Context, invoiceFilter model.Inv
 	defer rows.Close()
 
 	for rows.Next() {
-		var invoice model.Invoice
+		var invoice spec.Invoice
 		if err := rows.Scan(&invoice.Id, &invoice.UserId, &invoice.AdminId, &invoice.Paid, &invoice.PaymentStatus, &invoice.CreatedAt, &invoice.UpdatedAt); err != nil {
 			return invoices, fmt.Errorf("failed to scan %v", err.Error())
 		}
@@ -100,7 +100,7 @@ func (repo *repository) ListInvoice(ctx context.Context, invoiceFilter model.Inv
 	return invoices, nil
 
 }
-func (repo *repository) queryInvoiceWithFilter(query string, filter model.InvoiceFilter) (string, []interface{}) {
+func (repo *repository) queryInvoiceWithFilter(query string, filter spec.InvoiceFilter) (string, []interface{}) {
 
 	var filterValues []interface{}
 
@@ -127,10 +127,10 @@ func (repo *repository) queryInvoiceWithFilter(query string, filter model.Invoic
 
 	query += fmt.Sprintf(` ORDER BY %s %s`, filter.SortBy, filter.SortOrder)
 
-	filterValues = append(filterValues, model.PageSize)
+	filterValues = append(filterValues, spec.PageSize)
 	query += ` LIMIT $` + strconv.Itoa(len(filterValues))
 
-	filterValues = append(filterValues, (filter.Page-1)*model.PageSize)
+	filterValues = append(filterValues, (filter.Page-1)*spec.PageSize)
 	query += ` OFFSET $` + strconv.Itoa(len(filterValues))
 
 	if len(filterValues) >= 1 {
@@ -140,9 +140,9 @@ func (repo *repository) queryInvoiceWithFilter(query string, filter model.Invoic
 	return query, filterValues
 }
 
-func (repo *repository) GetInvoice(ctx context.Context, invoiceId string) (model.Invoice, error) {
+func (repo *repository) Get(ctx context.Context, invoiceId string) (spec.Invoice, error) {
 	var (
-		invoice model.Invoice
+		invoice spec.Invoice
 		row     *sql.Row
 		err     error
 	)
@@ -156,7 +156,7 @@ func (repo *repository) GetInvoice(ctx context.Context, invoiceId string) (model
 	return invoice, nil
 }
 
-func (repo *repository) EditInvoice(ctx context.Context, updateInvoiceReq model.UpdateInvoiceRequest) error {
+func (repo *repository) Edit(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) error {
 	var (
 		err    error
 		values []interface{}
@@ -181,7 +181,6 @@ func (repo *repository) EditInvoice(ctx context.Context, updateInvoiceReq model.
 	updateQuery += `WHERE id = $` + strconv.Itoa(len(values))
 
 	updateQuery = strings.Replace(updateQuery, ", WHERE", "WHERE", 1)
-	fmt.Println(updateQuery, values)
 
 	_, err = repo.db.ExecContext(ctx, updateQuery, values...)
 	if err != nil {
@@ -190,7 +189,7 @@ func (repo *repository) EditInvoice(ctx context.Context, updateInvoiceReq model.
 	return nil
 }
 
-func (repo *repository) DeleteInvoice(ctx context.Context, invoiceId string) error {
+func (repo *repository) Delete(ctx context.Context, invoiceId string) error {
 	var (
 		tx  *sql.Tx
 		err error
@@ -202,11 +201,9 @@ func (repo *repository) DeleteInvoice(ctx context.Context, invoiceId string) err
 			tx.Rollback()
 		}
 	}()
-
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction %v", err.Error())
 	}
-
 	_, err = tx.ExecContext(ctx, "delete from invoice where id = $1", invoiceId)
 	if err != nil {
 		return fmt.Errorf("failed to delete invoice %v", err.Error())

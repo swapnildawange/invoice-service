@@ -35,10 +35,10 @@ func (m *MockBL) EXPECT() *MockBLMockRecorder {
 }
 
 // CreateUser mocks base method
-func (m *MockBL) CreateUser(arg0 context.Context, arg1 model.CreateUserRequest) (model.User, error) {
+func (m *MockBL) CreateUser(arg0 context.Context, arg1 spec.CreateUserRequest) (spec.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateUser", arg0, arg1)
-	ret0, _ := ret[0].(model.User)
+	ret0, _ := ret[0].(spec.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -50,7 +50,7 @@ func (mr *MockBLMockRecorder) CreateUser(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // DeleteUser mocks base method
-func (m *MockBL) DeleteUser(arg0 context.Context, arg1 model.DeleteUserReq) (string, error) {
+func (m *MockBL) DeleteUser(arg0 context.Context, arg1 spec.DeleteUserReq) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteUser", arg0, arg1)
 	ret0, _ := ret[0].(string)
@@ -65,10 +65,10 @@ func (mr *MockBLMockRecorder) DeleteUser(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // EditUser mocks base method
-func (m *MockBL) EditUser(arg0 context.Context, arg1 model.EditUserRequest) (model.User, error) {
+func (m *MockBL) EditUser(arg0 context.Context, arg1 spec.EditUserRequest) (spec.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "EditUser", arg0, arg1)
-	ret0, _ := ret[0].(model.User)
+	ret0, _ := ret[0].(spec.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -80,10 +80,10 @@ func (mr *MockBLMockRecorder) EditUser(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // ListUsers mocks base method
-func (m *MockBL) ListUsers(arg0 context.Context, arg1 model.UserFilter) ([]model.User, error) {
+func (m *MockBL) ListUsers(arg0 context.Context, arg1 spec.UserFilter) ([]spec.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListUsers", arg0, arg1)
-	ret0, _ := ret[0].([]model.User)
+	ret0, _ := ret[0].([]spec.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -95,10 +95,10 @@ func (mr *MockBLMockRecorder) ListUsers(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // Login mocks base method
-func (m *MockBL) Login(arg0 context.Context, arg1 model.LoginRequest) (model.User, string, error) {
+func (m *MockBL) Login(arg0 context.Context, arg1 spec.LoginRequest) (spec.User, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Login", arg0, arg1)
-	ret0, _ := ret[0].(model.User)
+	ret0, _ := ret[0].(spec.User)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2

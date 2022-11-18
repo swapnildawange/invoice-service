@@ -1,14 +1,16 @@
 version: '3'
 
 services:
-  # invoice-service:
-  #   build: 
-  #     context: /home/josh/projects/invoice_service
-  #     dockerfile: /home/josh/projects/invoice_service/Dockerfile
-  #   restart: always
-  #   ports:
-  #     - "8080:8080"
-  
+  invoice-service:
+    build: 
+      context: /home/josh/projects/invoice_service
+      dockerfile: /home/josh/projects/invoice_service/Dockerfile
+    # restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      DSN: "host=postgres port=5432 user=postgres password=password dbname=invoicing sslmode=disable timezone=UTC connect_timeout=5"
+   
 
   postgres:
     image: 'postgres:14.0'

@@ -3,9 +3,9 @@ package invoice
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"invoice_service/model"
 	"invoice_service/security"
+	"invoice_service/spec"
+	"invoice_service/svcerror"
 	"strconv"
 
 	"net/http"
@@ -93,7 +93,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	if err == security.InvalidLoginErr || err == security.NotAuthorizedErr {
+	if err == svcerror.ErrInvalidLoginCreds || err == svcerror.ErrNotAuthorized {
 		w.WriteHeader(http.StatusUnauthorized)
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -105,7 +105,7 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 }
 
 func decodeCreateInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	var request model.CreateInvoiceRequest
+	var request spec.CreateInvoiceRequest
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func decodeCreateInvoiceReq(ctx context.Context, req *http.Request) (interface{}
 }
 
 // func decodeGetInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
-// 	var request model.GetInvoiceRequest
+// 	var request spec.GetInvoiceRequest
 
 // 	query := req.URL.Query()
 // 	invoice_id := query.Get("id")
@@ -123,7 +123,7 @@ func decodeCreateInvoiceReq(ctx context.Context, req *http.Request) (interface{}
 // }
 
 func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	var invoiceFilter = model.InvoiceFilter{
+	var invoiceFilter = spec.InvoiceFilter{
 		Paid:      -1,
 		SortBy:    "id",
 		SortOrder: "ASC",
@@ -139,7 +139,7 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	if userId != "" {
 		userId, err := strconv.Atoi(userId)
 		if err != nil {
-			return nil, fmt.Errorf("invalid user id provided in query params")
+			return nil, svcerror.ErrBadRouting
 		}
 		invoiceFilter.UserId = userId
 	}
@@ -148,7 +148,7 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	if adminId != "" {
 		adminId, err := strconv.Atoi(adminId)
 		if err != nil {
-			return nil, fmt.Errorf("invalid admin id provided in query params")
+			return nil, svcerror.ErrBadRouting
 		}
 		invoiceFilter.AdminId = adminId
 	}
@@ -157,7 +157,7 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	if paid != "" {
 		paid, err := strconv.ParseFloat(paid, 64)
 		if err != nil {
-			return nil, fmt.Errorf("invalid paid amount provided in query params")
+			return nil, svcerror.ErrBadRouting
 		}
 		invoiceFilter.Paid = paid
 	}
@@ -166,7 +166,7 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	if paymentStatus != "" {
 		paymentStatus, err := strconv.Atoi(paymentStatus)
 		if err != nil {
-			return nil, fmt.Errorf("invalid paymentStatus amount provided in query params")
+			return nil, svcerror.ErrBadRouting
 		}
 		invoiceFilter.PaymentStatus = paymentStatus
 	}
@@ -187,24 +187,24 @@ func decodeDeleteInvoiceReq(ctx context.Context, req *http.Request) (interface{}
 
 	invoiceId, ok := mux.Vars(req)["id"]
 	if !ok {
-		return nil, fmt.Errorf("invoice id not found in url path")
+		return nil, svcerror.ErrBadRouting
 	}
 
 	return invoiceId, nil
 }
 
 func decodeUpdateInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	var request = model.UpdateInvoiceRequest{
+	var request = spec.UpdateInvoiceRequest{
 		Paid:          -1,
 		PaymentStatus: -1,
 	}
 	invoiceId, ok := mux.Vars(req)["id"]
 	if !ok {
-		return nil, fmt.Errorf("invoice id not found in url path")
+		return nil, svcerror.ErrBadRouting
 	}
 
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
-		return nil, err
+		return nil, svcerror.ErrBadRouting
 	}
 
 	request.Id = invoiceId

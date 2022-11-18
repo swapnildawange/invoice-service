@@ -2,7 +2,7 @@ package security
 
 import (
 	"fmt"
-	"invoice_service/model"
+	"invoice_service/spec"
 	"net/http"
 	"time"
 
@@ -12,7 +12,7 @@ import (
 )
 
 type jwtResponse struct {
-	Role model.Role
+	Role spec.Role
 }
 
 type JWT interface {
@@ -49,9 +49,7 @@ func GenerateJWT(key string, userId, role int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return tokenString, nil
-
 }
 
 // func VerifyJWT(r *http.Request) (jwtResponse, error) {
@@ -72,11 +70,11 @@ func GenerateJWT(key string, userId, role int) (string, error) {
 // 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 // 		if claims["role"] == "admin" {
 // 			return jwtResponse{
-// 				Role: model.RoleAdmin,
+// 				Role: spec.RoleAdmin,
 // 			}, nil
 // 		} else if claims["role"] == "user" {
 // 			return jwtResponse{
-// 				Role: model.RoleUser,
+// 				Role: spec.RoleUser,
 // 			}, nil
 // 		}
 // 	}
