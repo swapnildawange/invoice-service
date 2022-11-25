@@ -7,4 +7,5 @@ create table if not exists  invoice (
 	created_at timestamp without time zone,
     updated_at timestamp without time zone,
     FOREIGN key (user_id) references users(id)
-)
+	ON DELETE CASCADE ON UPDATE NO ACTION
+);

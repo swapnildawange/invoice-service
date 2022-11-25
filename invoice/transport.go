@@ -3,12 +3,17 @@ package invoice
 import (
 	"context"
 	"encoding/json"
-	"invoice_service/security"
-	"invoice_service/spec"
-	"invoice_service/svcerror"
+	"errors"
 	"strconv"
 
 	"net/http"
+
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator"
+	"github.com/invoice-service/security"
+	"github.com/invoice-service/spec"
+	"github.com/invoice-service/svcerror"
+	"github.com/invoice-service/utils"
 
 	"github.com/go-kit/log"
 	"github.com/golang-jwt/jwt/v4"
@@ -27,7 +32,7 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 	}
 
 	keys := func(token *jwt.Token) (interface{}, error) {
-		key := viper.GetString("JWTSECRET")
+		key := viper.GetString("ACCESS_TOKEN_SECRET")
 		return []byte(key), nil
 	}
 
@@ -38,12 +43,12 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 		options...,
 	)
 
-	// getInvoiceHandler := httptransport.NewServer(
-	// 	endpoint.GetInvoice,
-	// 	decodeGetInvoiceReq,
-	// 	encodeResponse,
-	// 	options...,
-	// )
+	getInvoiceHandler := httptransport.NewServer(
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.GetInvoice),
+		decodeGetInvoiceReq,
+		encodeResponse,
+		options...,
+	)
 
 	listInvoiceHandler := httptransport.NewServer(
 		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.ListInvoice),
@@ -67,6 +72,7 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 	)
 
 	r.Methods(http.MethodPost).Path(CreateInvoiceRequestPath).Handler(createInvoiceHandler)
+	r.Methods(http.MethodGet).Path(GetInvoiceRequestPath).Handler(getInvoiceHandler)
 	r.Methods(http.MethodPatch).Path(EditInvoiceRequestPath).Handler(updateInvoiceHandler)
 	r.Methods(http.MethodDelete).Path(DeleteInvoiceRequestPath).Handler(deleteInvoiceHandler)
 	r.Methods(http.MethodGet).Path(ListInvoiceRequestPath).Handler(listInvoiceHandler)
@@ -104,23 +110,46 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	})
 }
 
+var (
+	validate *validator.Validate
+	trans    ut.Translator
+)
+
+func init() {
+	validate, _ = utils.InitValidator()
+	trans = utils.InitTranslator()
+}
+
+func validateCreateInvoiceRequest(request spec.CreateInvoiceRequest) error {
+	err := validate.Struct(request)
+	if err != nil {
+		for _, e := range err.(validator.ValidationErrors) {
+			return errors.New(e.Translate(trans))
+		}
+	}
+	return nil
+}
+
 func decodeCreateInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
 	var request spec.CreateInvoiceRequest
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		return nil, err
 	}
+	if err := validateCreateInvoiceRequest(request); err != nil {
+		return nil, err
+	}
 	return request, nil
 }
 
-// func decodeGetInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
-// 	var request spec.GetInvoiceRequest
+func decodeGetInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
+	var request spec.GetInvoiceRequest
 
-// 	query := req.URL.Query()
-// 	invoice_id := query.Get("id")
-// 	request.Id = invoice_id
+	query := req.URL.Query()
+	invoice_id := query.Get("id")
+	request.Id = invoice_id
 
-// 	return request, nil
-// }
+	return request, nil
+}
 
 func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, error) {
 	var invoiceFilter = spec.InvoiceFilter{
@@ -133,6 +162,15 @@ func decodeListInvoiceReq(ctx context.Context, req *http.Request) (interface{}, 
 	invoiceId := req.URL.Query().Get("id")
 	if invoiceId != "" {
 		invoiceFilter.Id = invoiceId
+	}
+
+	page := req.URL.Query().Get("page")
+	if page != "" {
+		page, err := strconv.Atoi(page)
+		if err != nil {
+			return nil, svcerror.ErrBadRouting
+		}
+		invoiceFilter.Page = page
 	}
 
 	userId := req.URL.Query().Get("user_id")

@@ -3,14 +3,19 @@ package user
 import (
 	"context"
 	"encoding/json"
-	"invoice_service/security"
-	"invoice_service/spec"
-	"invoice_service/svcerror"
+	"errors"
 	"strconv"
+
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator"
+	"github.com/invoice-service/security"
+	"github.com/invoice-service/spec"
+	"github.com/invoice-service/svcerror"
+	"github.com/invoice-service/utils"
 
 	"net/http"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/viper"
 
@@ -27,13 +32,20 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 	}
 
 	keys := func(token *jwt.Token) (interface{}, error) {
-		key := viper.GetString("JWTSECRET")
+		key := viper.GetString("ACCESS_TOKEN_SECRET")
 		return []byte(key), nil
 	}
 
 	createUserHandler := httptransport.NewServer(
 		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.CreateUser),
 		decodeCreateUserRequest,
+		encodeResponse,
+		options...,
+	)
+
+	getUserHandler := httptransport.NewServer(
+		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.GetUser),
+		decodeGetUserRequest,
 		encodeResponse,
 		options...,
 	)
@@ -54,31 +66,16 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 
 	deleteUserHandler := httptransport.NewServer(
 		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.DeleteUser),
-		decodeDeleteReq,
-		encodeResponse,
-		options...,
-	)
-
-	loginHandler := httptransport.NewServer(
-		endpoint.LoginHandler,
-		decodeLoginReq,
-		encodeResponse,
-		options...,
-	)
-
-	jwtTokenHandler := httptransport.NewServer(
-		endpoint.GenerateJWTToken,
-		decodeGenerateTokenReq,
+		decodeDeleteUserReq,
 		encodeResponse,
 		options...,
 	)
 
 	r.Methods(http.MethodPost).Path(spec.CreateUserRequestPath).Handler(createUserHandler)
+	r.Methods(http.MethodGet).Path(spec.GetUserRequestPath).Handler(getUserHandler)
 	r.Methods(http.MethodGet).Path(spec.ListUsersRequestPath).Handler(listUsersHandler)
 	r.Methods(http.MethodPatch).Path(spec.EditUserRequestPath).Handler(editUserHandler)
 	r.Methods(http.MethodDelete).Path(spec.DeleteUserRequestPath).Handler(deleteUserHandler)
-	r.Methods(http.MethodPost).Path(spec.LoginRequestPath).Handler(loginHandler)
-	r.Methods(http.MethodPost).Path(spec.GenerateJWTRequestPath).Handler(jwtTokenHandler)
 
 	return r
 }
@@ -115,10 +112,34 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	})
 }
 
+var (
+	validate *validator.Validate
+	trans    ut.Translator
+)
+
+func init() {
+	validate, _ = utils.InitValidator()
+
+	trans = utils.InitTranslator()
+}
+
+func validateCreateUserRequest(request spec.CreateUserRequest) error {
+	err := validate.Struct(request)
+	if err != nil {
+		for _, e := range err.(validator.ValidationErrors) {
+			return errors.New(e.Translate(trans))
+		}
+	}
+	return nil
+}
+
 func decodeCreateUserRequest(ctx context.Context, req *http.Request) (interface{}, error) {
 	var request spec.CreateUserRequest
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		return nil, svcerror.ErrInvalidRequest
+	}
+	if err := validateCreateUserRequest(request); err != nil {
+		return nil, err
 	}
 	return request, nil
 }
@@ -176,39 +197,44 @@ func decodeListUsersReq(ctx context.Context, req *http.Request) (interface{}, er
 	return request, nil
 }
 
-func decodeLoginReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	var request spec.LoginRequest
-	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
-		return nil, svcerror.ErrInvalidRequest
+func decodeGetUserRequest(ctx context.Context, req *http.Request) (interface{}, error) {
+	var (
+		err error
+		id  int
+	)
+
+	userId, ok := mux.Vars(req)["id"]
+	if !ok {
+		return nil, svcerror.ErrBadRouting
+	} else if userId != "" {
+		id, err = strconv.Atoi(userId)
+		if err != nil {
+			return nil, svcerror.ErrBadRouting
+		}
 	}
-	return request, nil
+	return id, nil
 }
 
-func decodeGenerateTokenReq(ctx context.Context, req *http.Request) (interface{}, error) {
-	return nil, nil
-}
-
-func decodeDeleteReq(ctx context.Context, req *http.Request) (interface{}, error) {
+func decodeDeleteUserReq(ctx context.Context, req *http.Request) (interface{}, error) {
 	var (
 		deleteUserReq = spec.DeleteUserReq{
 			Id: -1,
 		}
 		err error
 	)
-	userId, ok := mux.Vars(req)["id"]
-	if !ok {
-		return nil, svcerror.ErrBadRouting
-	} else if userId != "" {
-		deleteUserReq.Id, err = strconv.Atoi(userId)
-		if err != nil {
+	id := req.URL.Query().Get("id")
+	if id != "" {
+		deleteUserReq.Id, err = strconv.Atoi(id)
+		if err != nil || deleteUserReq.Id <= 0 {
 			return nil, svcerror.ErrBadRouting
 		}
 	}
+	deleteUserReq.Email = req.URL.Query().Get("email")
+
 	return deleteUserReq, nil
 }
 
 func decodeEditUserReq(ctx context.Context, req *http.Request) (interface{}, error) {
-
 	var (
 		request spec.EditUserRequest
 		err     error
@@ -225,5 +251,6 @@ func decodeEditUserReq(ctx context.Context, req *http.Request) (interface{}, err
 			return nil, svcerror.ErrBadRouting
 		}
 	}
+
 	return request, nil
 }

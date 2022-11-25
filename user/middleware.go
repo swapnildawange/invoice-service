@@ -3,8 +3,9 @@ package user
 import (
 	"context"
 	"fmt"
-	"invoice_service/security"
-	"invoice_service/svcerror"
+
+	"github.com/invoice-service/security"
+	"github.com/invoice-service/svcerror"
 
 	gokitjwt "github.com/go-kit/kit/auth/jwt"
 )

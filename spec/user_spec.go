@@ -30,11 +30,11 @@ type User struct {
 
 type CreateUserRequest struct {
 	Id        int       `json:"id"`
-	Email     string    `json:"email"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Password  string    `json:"password"`
-	Role      int       `json:"role"`
+	Email     string    `json:"email" validate:"required,email"`
+	FirstName string    `json:"first_name" validate:"required"`
+	LastName  string    `json:"last_name"  validate:"required"`
+	Password  string    `json:"password"  validate:"required,passwd"`
+	Role      int       `json:"role"  validate:"required,oneof=1 2"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -51,7 +51,8 @@ type LoginRequest struct {
 }
 type LoginResponse struct {
 	User
-	Token string `json:"token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // response
@@ -87,17 +88,17 @@ type ListUsersRequest struct {
 }
 
 type UserFilter struct {
-	Id        int    `json:"id"`
+	Id        int    `json:"id" `
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
-	Page      int    `json:"page"`
+	Page      int    `json:"page" validate:"gt=0"`
 	SortBy    string `json:"sort_by"`
-	SortOrder string `json:"sort_order"`
+	SortOrder string `json:"sort_order" validate:"oneof=ASC DESC"`
 }
 
 type DeleteUserReq struct {
 	Id    int    `json:"id"`
-	Email string `json:"email"`
+	Email string `json:"email" validate:"email"`
 }
 
 type EditUserRequest struct {

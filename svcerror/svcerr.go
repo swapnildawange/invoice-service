@@ -1,29 +1,50 @@
 package svcerror
 
-import "errors"
+type CustomError interface {
+	Error() string
+}
+
+type CustomErrString struct {
+	s string
+}
+
+func NewCustomError(text string) CustomError {
+	return &CustomErrString{text}
+}
+
+func (e *CustomErrString) Error() string {
+	return e.s
+}
 
 var (
-	ErrFailedToDecode      = errors.New("failed to decode request")
-	ErrInvalidRequest      = errors.New("invalid request")
-	ErrAlreadyExists       = errors.New("already exists")
-	ErrNotFound            = errors.New("not found")
-	ErrBadRouting          = errors.New("inconsistent mapping between route and handler (programmer error)")
-	ErrNotAuthorized       = errors.New("user is not authorized to access the resources")
-	ErrLoginFailed         = errors.New("failed to login user")
-	ErrInvalidToken        = errors.New("invalid JWT token")
-	ErrFailedToGenerateJWT = errors.New("failed to generate jwt token")
-	ErrFailedToCreateUser  = errors.New("failed to create user")
-	ErrFailedToGetUser     = errors.New("failed to get user")
-	ErrFailedToListUsers   = errors.New("failed to list users")
-	ErrFailedToUpdateUser  = errors.New("failed to update user")
-	ErrFailedToDeleteUser  = errors.New("failed to delete user")
+	ErrFailedToDecode      = NewCustomError("failed to decode request")
+	ErrInvalidRequest      = NewCustomError("invalid request")
+	ErrAlreadyExists       = NewCustomError("already exists")
+	ErrNotFound            = NewCustomError("not found")
+	ErrBadRouting          = NewCustomError("inconsistent mapping between route and handler (programmer error)")
+	ErrNotAuthorized       = NewCustomError("user is not authorized to access the resources")
+	ErrLoginFailed         = NewCustomError("failed to login user")
+	ErrInvalidToken        = NewCustomError("invalid JWT token")
+	ErrFailedToGenerateJWT = NewCustomError("failed to generate jwt token")
+	ErrFailedToCreateUser  = NewCustomError("failed to create user")
+	ErrFailedToGetUser     = NewCustomError("failed to get user")
+	ErrFailedToListUsers   = NewCustomError("failed to list users")
+	ErrFailedToUpdateUser  = NewCustomError("failed to update user")
+	ErrFailedToDeleteUser  = NewCustomError("failed to delete user")
 
 	// invoice error
-	ErrFailedToCreateInvoice = errors.New("failed to create invoice")
-	ErrFailedToDeleteInvoice = errors.New("failed to delete invoice")
-	ErrFailedToUpdateInvoice = errors.New("failed to update invoice")
-	ErrFailedToGetInvoice    = errors.New("failed to get invoice")
-	ErrFailedToListInvoice   = errors.New("failed to list invoice")
+	ErrFailedToCreateInvoice = NewCustomError("failed to create invoice")
+	ErrFailedToDeleteInvoice = NewCustomError("failed to delete invoice")
+	ErrFailedToUpdateInvoice = NewCustomError("failed to update invoice")
+	ErrFailedToGetInvoice    = NewCustomError("failed to get invoice")
+	ErrFailedToListInvoice   = NewCustomError("failed to list invoice")
+	ErrInvoiceNotFound       = NewCustomError("invoice not found")
+	ErrInvalidLoginCreds     = NewCustomError("email or password is wrong")
+	ErrSameUserAndAdminId    = NewCustomError("user id and admin id can't be same")
 
-	ErrInvalidLoginCreds = errors.New("email or password is wrong")
+	// jwt
+	ErrFailedToGenerateAccessToken  = NewCustomError("failed to generate access token")
+	ErrFailedToGenerateRefreshToken = NewCustomError("failed to generate refresh token")
+
+	ErrUserNotFound = NewCustomError("user not found")
 )

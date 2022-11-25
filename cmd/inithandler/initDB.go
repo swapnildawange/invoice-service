@@ -13,7 +13,7 @@ import (
 
 // This function will make a connection to the database only once.
 func InitDB(logger log.Logger) *sql.DB {
-	// connStr := "postgres://postgres:password@127.0.0.1/invoicing?sslmode=disable"
+	// connStr := "postgres://postgres:password@127.0.0.1/github.com/invoice-service?sslmode=disable"
 
 	// db, err := sql.Open("postgres", connStr)
 	// if err != nil {
@@ -23,8 +23,7 @@ func InitDB(logger log.Logger) *sql.DB {
 	// if err = db.Ping(); err != nil {
 	// 	return nil, err
 	// }
-	db := connectToDB(logger, 3, 5)
-	return db
+	return connectToDB(logger, 3, 5)
 }
 
 func openDB(logger log.Logger, dsn string) (*sql.DB, error) {
@@ -45,16 +44,16 @@ func openDB(logger log.Logger, dsn string) (*sql.DB, error) {
 }
 
 func connectToDB(logger log.Logger, retries, delay int) *sql.DB {
-	dsn := viper.GetString("DSN")
 	for i := 0; i < retries; i++ {
+		dsn := viper.GetString("DSN")
 		connection, err := openDB(logger, dsn)
 		if err != nil {
 			logger.Log("[debug]", " Postgres not ready yet", "err", err.Error())
 			time.Sleep(time.Duration(delay) * time.Second)
-		} else {
-			logger.Log("Successfully connected postgres DB")
-			return connection
+			continue
 		}
+		logger.Log("[debug]", "Successfully connected postgres DB")
+		return connection
 	}
 	return nil
 }

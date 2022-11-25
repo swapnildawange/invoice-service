@@ -4,19 +4,21 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"invoice_service/spec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/invoice-service/spec"
+	"github.com/invoice-service/svcerror"
 )
 
-//go:generate  mockgen -destination=../mocks/repository.mock.go -package=mocks invoice_service/user/repository Repository
+//go:generate  mockgen -destination=../mocks/repository.mock.go -package=mocks github.com/invoice-service/user/repository Repository
 type Repository interface {
 	Create(ctx context.Context, createUserReq spec.CreateUserRequest) (int, error)
 	List(ctx context.Context, listUserFilter spec.UserFilter) ([]spec.User, error)
 	GetUserFromAuth(ctx context.Context, email string) (userId int, hashedPassword string, err error)
 	Get(ctx context.Context, userId int) (spec.User, error)
-	Delete(ctx context.Context, deleteUserReq spec.DeleteUserReq) error
+	Delete(ctx context.Context, deleteUserReq spec.DeleteUserReq) (int, error)
 	Edit(ctx context.Context, editUserReq spec.EditUserRequest) (spec.User, error)
 }
 
@@ -32,12 +34,16 @@ func NewRepository(db *sql.DB) Repository {
 
 func (repo *repository) GetUserFromAuth(ctx context.Context, email string) (userId int, hashedPassword string, err error) {
 
-	row := repo.db.QueryRowContext(ctx, `select user_id,password from auth where email = $1`, email)
+	row := repo.db.QueryRowContext(ctx, `SELECT user_id,password FROM auth WHERE email = $1`, email)
 	if row.Err() != nil {
-		return userId, hashedPassword, fmt.Errorf("failed to get User details from auth %s", row.Err().Error())
+
+		return userId, hashedPassword, err
 	}
 	if err = row.Scan(&userId, &hashedPassword); err != nil {
-		return userId, hashedPassword, fmt.Errorf("failed to scan user details %s", row.Err().Error())
+		if err == sql.ErrNoRows {
+			return userId, hashedPassword, svcerror.ErrUserNotFound
+		}
+		return userId, hashedPassword, row.Err()
 	}
 	return userId, hashedPassword, nil
 }
@@ -48,13 +54,17 @@ func (repo *repository) Get(ctx context.Context, userId int) (spec.User, error) 
 		err  error
 		row  *sql.Row
 	)
-	getUserQuery := `select id,first_name,last_name,role,created_at,updated_at from users where id=$1;`
+	getUserQuery := `SELECT id,first_name,last_name,role,created_at,updated_at FROM users WHERE id=$1;`
 	row = repo.db.QueryRowContext(ctx, getUserQuery, userId)
 	if row.Err() != nil {
-		return user, fmt.Errorf("failed to get user %s ", row.Err())
+		return user, err
 	}
 
-	if err = row.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
+	err = row.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return user, svcerror.ErrUserNotFound
+		}
 		return user, err
 	}
 	return user, nil
@@ -62,36 +72,34 @@ func (repo *repository) Get(ctx context.Context, userId int) (spec.User, error) 
 
 func (repo *repository) Create(ctx context.Context, createUserReq spec.CreateUserRequest) (int, error) {
 	var (
-		err    error
-		rows   *sql.Rows
-		row    *sql.Row
-		tx     *sql.Tx
-		userId int
+		err        error
+		rows       *sql.Rows
+		row        *sql.Row
+		tx         *sql.Tx
+		userId     int
+		emailCount int
 	)
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, spec.Timeout*time.Second)
 	defer cancel()
 
 	tx, err = repo.db.BeginTx(ctx, nil)
+	if err != nil {
+		return userId, fmt.Errorf("failed to begin transaction %v", err)
+	}
 	defer func() {
 		if err != nil {
 			tx.Rollback()
 		}
 	}()
 
-	if err != nil {
-		return userId, fmt.Errorf("failed to begin transaction %w", err)
-	}
-
 	// check if email is already present
-	checkEmailQuery := `select COUNT(id) from auth where email = $1`
+	checkEmailQuery := `SELECT COUNT(id) FROM auth WHERE email = $1`
 
 	rows, err = tx.QueryContext(ctx, checkEmailQuery, createUserReq.Email)
 	if err != nil {
 		return userId, err
 	}
 	defer rows.Close()
-
-	var emailCount int
 
 	for rows.Next() {
 		if err := rows.Scan(&emailCount); err != nil {
@@ -100,7 +108,7 @@ func (repo *repository) Create(ctx context.Context, createUserReq spec.CreateUse
 	}
 
 	if emailCount != 0 {
-		return userId, fmt.Errorf("email is already present %w", err)
+		return userId, fmt.Errorf("email is already present")
 	}
 
 	insertIntoUsersQuery := `insert into "users"("first_name","last_name","role","created_at","updated_at")
@@ -124,7 +132,7 @@ func (repo *repository) Create(ctx context.Context, createUserReq spec.CreateUse
 
 	err = tx.Commit()
 	if err != nil {
-		return userId, fmt.Errorf("failed to commit db transaction %w", err)
+		return userId, fmt.Errorf("failed to commit db transaction %v", err)
 	}
 	return userId, nil
 }
@@ -135,18 +143,21 @@ func (repo *repository) List(ctx context.Context, listUserFilter spec.UserFilter
 		err   error
 		rows  *sql.Rows
 	)
-	listUsersQuery := `select id,first_name,last_name,role,created_at,updated_at from users `
+	listUsersQuery := `SELECT id,first_name,last_name,role,created_at,updated_at FROM users `
 
 	listUsersQuery, filterValues := repo.queryUsersWithFilter(ctx, listUsersQuery, listUserFilter)
 
 	rows, err = repo.db.QueryContext(ctx, listUsersQuery, filterValues...)
 	if err != nil {
-		return users, fmt.Errorf("failed to list users %v", err.Error())
+		return users, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var user spec.User
 		if err = rows.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			if err == sql.ErrNoRows {
+				return users, nil
+			}
 			return users, err
 		}
 		users = append(users, user)
@@ -191,7 +202,7 @@ func (s *repository) queryUsersWithFilter(ctx context.Context, query string, fil
 	return query, filterValues
 }
 
-func (repo *repository) Delete(ctx context.Context, deleteUserReq spec.DeleteUserReq) error {
+func (repo *repository) Delete(ctx context.Context, deleteUserReq spec.DeleteUserReq) (int, error) {
 	var (
 		tx     *sql.Tx
 		err    error
@@ -200,7 +211,7 @@ func (repo *repository) Delete(ctx context.Context, deleteUserReq spec.DeleteUse
 
 	tx, err = repo.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction %v", err.Error())
+		return userId, fmt.Errorf("failed to begin transaction %v", err.Error())
 	}
 
 	defer func() {
@@ -212,47 +223,51 @@ func (repo *repository) Delete(ctx context.Context, deleteUserReq spec.DeleteUse
 	if deleteUserReq.Email != "" {
 		userId, _, err = repo.GetUserFromAuth(ctx, deleteUserReq.Email)
 		if err != nil {
-			return fmt.Errorf("failed to get user from  auth table %v", err.Error())
+			return userId, err
 		}
 		if deleteUserReq.Id != -1 && deleteUserReq.Id != userId {
-			return fmt.Errorf("user not found ")
+			return userId, svcerror.ErrUserNotFound
 		}
 		deleteUserReq.Id = userId
 	} else {
 		userId = deleteUserReq.Id
 	}
+	_, err = repo.Get(ctx, userId)
+	if err != nil {
+		return userId, err
+	}
 	// delete from users
 	usersQuery := `DELETE FROM users where id = $1`
 	_, err = tx.ExecContext(ctx, usersQuery, userId)
 	if err != nil {
-		return fmt.Errorf("failed to execute delete query for users table %w", err)
+		return userId, fmt.Errorf("failed to execute delete query for users table %v", err)
 	}
 	// delete from auth
 	authQuery := `DELETE FROM auth where id = $1`
 	_, err = tx.ExecContext(ctx, authQuery, userId)
 	if err != nil {
-		return fmt.Errorf("failed to execute  delete query for auth query %w", err)
+		return userId, fmt.Errorf("failed to execute  delete query for auth query %v", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("failed to commit transaction %w", err)
+		return userId, fmt.Errorf("failed to commit transaction %v", err)
 	}
 
-	return nil
+	return userId, nil
 }
 
 func (repo *repository) Edit(ctx context.Context, editUserReq spec.EditUserRequest) (spec.User, error) {
 	var (
-		newUser spec.User
-		values  []interface{}
-		tx      *sql.Tx
-		err     error
-		row     *sql.Row
+		user   spec.User
+		values []interface{}
+		tx     *sql.Tx
+		err    error
+		row    *sql.Row
 	)
 	tx, err = repo.db.BeginTx(ctx, nil)
 	if err != nil {
-		return newUser, fmt.Errorf("failed to begin db transaction %s", err.Error())
+		return user, fmt.Errorf("failed to begin db transaction %s", err.Error())
 	}
 
 	defer func() {
@@ -261,15 +276,31 @@ func (repo *repository) Edit(ctx context.Context, editUserReq spec.EditUserReque
 		}
 	}()
 
+	// check if user exsists
+	selectQuery := `select id,first_name,last_name,role,created_at,updated_at from users where id = $1`
+	row = tx.QueryRowContext(ctx, selectQuery, editUserReq.Id)
+	if row.Err() != nil {
+		return user, err
+	}
+	err = row.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return user, svcerror.ErrUserNotFound
+		}
+		return user, fmt.Errorf("failed to scan  user %s", err.Error())
+	}
+
 	updateQuery := `UPDATE users SET`
 
 	if editUserReq.FirstName != "" {
 		values = append(values, editUserReq.FirstName)
 		updateQuery += ` first_name = $` + strconv.Itoa(len(values)) + ` ,`
+		user.FirstName = editUserReq.FirstName
 	}
 	if editUserReq.LastName != "" {
 		values = append(values, editUserReq.LastName)
 		updateQuery += ` last_name = $` + strconv.Itoa(len(values)) + ` ,`
+		user.LastName = editUserReq.LastName
 	}
 
 	values = append(values, time.Now())
@@ -279,25 +310,59 @@ func (repo *repository) Edit(ctx context.Context, editUserReq spec.EditUserReque
 	updateQuery += ` WHERE id = $` + strconv.Itoa(len(values))
 
 	updateQuery = strings.ReplaceAll(updateQuery, ", WHERE", "WHERE ")
-
 	_, err = tx.ExecContext(ctx, updateQuery, values...)
 	if err != nil {
-		return newUser, fmt.Errorf("failed to execute update user query %s", err.Error())
-	}
-
-	selectQuery := `select id,first_name,last_name,role,created_at,updated_at from users where id = $1`
-	row = tx.QueryRowContext(ctx, selectQuery, editUserReq.Id)
-	if row.Err() != nil {
-		return newUser, fmt.Errorf("failed to get updated user %s", err.Error())
-	}
-	if err = row.Scan(&newUser.Id, &newUser.FirstName, &newUser.LastName, &newUser.Role, &newUser.CreatedAt, &newUser.UpdatedAt); err != nil {
-		return newUser, fmt.Errorf("failed to scan updated user %s", err.Error())
+		return user, fmt.Errorf("failed to execute update user query %s", err.Error())
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return newUser, fmt.Errorf("failed to commit db transaction %s", err.Error())
+		return user, fmt.Errorf("failed to commit db transaction %s", err.Error())
 	}
 
-	return newUser, nil
+	return user, nil
 }
+
+// func SelectQueryBuilder() {
+// 	type SortOrder string
+
+// 	var ASC SortOrder = "ASC"
+// 	// var DESC SortOrder = "DESC"
+
+// 	type SelectQuery struct {
+// 		TableName string
+// 		Columns   []string
+// 		Where     map[string]interface{}
+// 		WhereLike map[string]interface{}
+// 		OrderBy   []string
+// 		SortOrder SortOrder
+// 		GroupBy   []string
+// 		Limit     int
+// 		Offset    int
+// 	}
+
+// 	query := SelectQuery{
+// 		TableName: "users",
+// 		Columns:   []string{"id", "first_name", "last_name", "created_at"},
+// 		Where: map[string]interface{}{
+// 			"id": 1,
+// 		},
+// 		WhereLike: map[string]interface{}{
+// 			"first_name": "s",
+// 		},
+// 		OrderBy:   []string{"id"},
+// 		SortOrder: ASC,
+// 		Limit:     10,
+// 		Offset:    1,
+// 	}
+// 	qu := fmt.Sprintf("SELECT %s FROM %s", strings.Join(query.Columns, ","), query.TableName)
+// 	// add where
+// 	for key, val := range query.Where {
+// 		qu += fmt.Sprintf("where %s = %v", key, val)
+// 	}
+
+// 	for key, val := range query.WhereLike {
+// 		qu += fmt.Sprintf(`where %s like '%"%v"%'`, key, val)
+// 	}
+
+// }

@@ -2,8 +2,10 @@ package inithandler
 
 import (
 	"database/sql"
-	invoiceRepository "invoice_service/invoice/repository"
-	userRepository "invoice_service/user/repository"
+
+	userRepository "github.com/invoice-service/user/repository"
+
+	invoiceRepository "github.com/invoice-service/invoice/repository"
 )
 
 type Repository struct {

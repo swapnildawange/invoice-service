@@ -2,11 +2,11 @@ package invoice
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"invoice_service/invoice/repository"
-	"invoice_service/spec"
+	"github.com/invoice-service/invoice/repository"
+	"github.com/invoice-service/spec"
+	"github.com/invoice-service/svcerror"
 
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -14,10 +14,10 @@ import (
 
 type BL interface {
 	CreateInvoice(ctx context.Context, createInvoiceReq spec.CreateInvoiceRequest) (spec.Invoice, error)
-	GetInvoice(ctx context.Context, invoiceId string) (spec.Invoice, error)
+	GetInvoice(ctx context.Context, getInvoiceReq spec.GetInvoiceRequest) (spec.Invoice, error)
 	ListInvoice(ctx context.Context, invoiceFilter spec.InvoiceFilter) ([]spec.Invoice, error)
 	UpdateInvoice(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) (spec.Invoice, error)
-	DeleteInvoice(ctx context.Context, invoiceId string) error
+	DeleteInvoice(ctx context.Context, invoiceId string) (string, error)
 }
 
 type bl struct {
@@ -42,25 +42,25 @@ func (bl bl) CreateInvoice(ctx context.Context, createInvoiceReq spec.CreateInvo
 	createInvoiceReq.UpdatedAt = time.Now()
 
 	if createInvoiceReq.AdminId == createInvoiceReq.UserId {
-		bl.logger.Log("[debug]", "User id and admin id cant be same")
-		return invoice, fmt.Errorf("user id and admin id cant be same")
+		bl.logger.Log("[debug]", "User id and admin id can't be same")
+		return invoice, svcerror.ErrSameUserAndAdminId
 	}
 
 	invoice, err = bl.repo.Create(ctx, createInvoiceReq)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to create invoice ", "err", err.Error())
-		return invoice, fmt.Errorf("failed to create invoice %v", err.Error())
+		return invoice, err
 	}
 
 	return invoice, nil
 }
 
-func (bl bl) GetInvoice(ctx context.Context, invoiceId string) (spec.Invoice, error) {
+func (bl bl) GetInvoice(ctx context.Context, getInvoiceReq spec.GetInvoiceRequest) (spec.Invoice, error) {
 	var (
 		invoice spec.Invoice
 		err     error
 	)
-	invoice, err = bl.repo.Get(ctx, invoiceId)
+	invoice, err = bl.repo.Get(ctx, getInvoiceReq.Id, getInvoiceReq.UserId)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to get invoice ", "err", err.Error())
 		return invoice, err
@@ -78,9 +78,6 @@ func (bl bl) ListInvoice(ctx context.Context, invoiceFilter spec.InvoiceFilter) 
 	if err != nil {
 		return invoices, err
 	}
-	if len(invoices) == 0 {
-		bl.logger.Log("[debug]", "No invoice found")
-	}
 	bl.logger.Log("[debug]", "Successfully listed invoice")
 	return invoices, nil
 }
@@ -96,7 +93,7 @@ func (bl bl) UpdateInvoice(ctx context.Context, updateInvoiceReq spec.UpdateInvo
 		return invoice, err
 	}
 
-	invoice, err = bl.repo.Get(ctx, updateInvoiceReq.Id)
+	invoice, err = bl.repo.Get(ctx, updateInvoiceReq.Id, 0)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to get updated invoice", "err", err.Error())
 		return invoice, err
@@ -105,11 +102,11 @@ func (bl bl) UpdateInvoice(ctx context.Context, updateInvoiceReq spec.UpdateInvo
 	return invoice, nil
 }
 
-func (bl bl) DeleteInvoice(ctx context.Context, invoiceId string) error {
-	err := bl.repo.Delete(ctx, invoiceId)
+func (bl bl) DeleteInvoice(ctx context.Context, invoiceId string) (string, error) {
+	_, err := bl.repo.Delete(ctx, invoiceId)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to delete invoice", "err", err.Error())
-		return err
+		return invoiceId, err
 	}
-	return nil
+	return invoiceId, nil
 }

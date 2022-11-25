@@ -2,6 +2,7 @@ package spec
 
 const (
 	PageSize = 5
+	Timeout  = 5
 )
 
 // payment status
@@ -26,7 +27,8 @@ const (
 	CreateUserRequestPath  = "/user"
 	ListUsersRequestPath   = "/users"
 	EditUserRequestPath    = "/user/{id}"
-	DeleteUserRequestPath  = "/user/{id}"
+	GetUserRequestPath     = "/user/{id}"
+	DeleteUserRequestPath  = "/user"
 	LoginRequestPath       = "/login"
 	GenerateJWTRequestPath = "/generate_token"
 )

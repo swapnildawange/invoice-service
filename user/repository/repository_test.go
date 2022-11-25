@@ -2,8 +2,9 @@ package repository
 
 import (
 	"context"
-	"invoice_service/spec"
 	"testing"
+
+	"github.com/invoice-service/spec"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )

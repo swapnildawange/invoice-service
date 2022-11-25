@@ -1,8 +1,9 @@
 package inithandler
 
 import (
-	"invoice_service/spec"
 	"log"
+
+	"github.com/invoice-service/spec"
 
 	"github.com/spf13/viper"
 )

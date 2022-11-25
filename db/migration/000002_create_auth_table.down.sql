@@ -1,1 +1,1 @@
-DROP TABLE auth;
+DROP TABLE IF EXISTS auth;

@@ -1,1 +1,1 @@
-DROP TABLE invoice;
+DROP TABLE IF EXISTS invoice;

@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"invoice_service/invoice"
-	"invoice_service/user"
 	"log"
 	"net/http"
 
-	"invoice_service/cmd/inithandler"
+	"github.com/invoice-service/invoice"
+	"github.com/invoice-service/user"
+
+	"github.com/invoice-service/cmd/inithandler"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -17,7 +18,6 @@ import (
 func main() {
 	ctx := context.Background()
 	// initate viper
-	// inithandler.InitViper()
 	config, err := inithandler.LoadConfig(".")
 	if err != nil {
 		log.Fatal("cannot load config:", err)
@@ -27,8 +27,8 @@ func main() {
 
 	// initate db
 	db := inithandler.InitDB(logger)
-	if db != nil {
-		logger.Log("[debug]", "failed to connect to db")
+	if db == nil {
+		log.Fatal("[debug]", "failed to connect to db")
 	}
 	logger.Log("[debug]", "The database is connected")
 
@@ -57,5 +57,6 @@ func main() {
 		logger.Log("transport", "http", "address", config.WebPort, "msg", "listening")
 		errs <- http.ListenAndServe(fmt.Sprintf(":%d", config.WebPort), router)
 	}()
+
 	logger.Log("terminated", <-errs)
 }
