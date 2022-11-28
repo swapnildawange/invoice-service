@@ -31,7 +31,7 @@ var (
 	ErrFailedToListUsers   = NewCustomError("failed to list users")
 	ErrFailedToUpdateUser  = NewCustomError("failed to update user")
 	ErrFailedToDeleteUser  = NewCustomError("failed to delete user")
-
+	ErrEmailAlreadyPresent = NewCustomError("email is already present")
 	// invoice error
 	ErrFailedToCreateInvoice = NewCustomError("failed to create invoice")
 	ErrFailedToDeleteInvoice = NewCustomError("failed to delete invoice")

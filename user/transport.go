@@ -39,7 +39,7 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 	createUserHandler := httptransport.NewServer(
 		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.CreateUser),
 		decodeCreateUserRequest,
-		encodeResponse,
+		encodeResponse,	
 		options...,
 	)
 

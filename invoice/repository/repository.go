@@ -16,7 +16,7 @@ type Repository interface {
 	Create(ctx context.Context, createInvoiceReq spec.CreateInvoiceRequest) (spec.Invoice, error)
 	List(ctx context.Context, invoiceFilter spec.InvoiceFilter) ([]spec.Invoice, error)
 	Get(ctx context.Context, invoiceId string, userId int) (spec.Invoice, error)
-	Edit(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) error
+	Edit(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) (spec.Invoice, error)
 	Delete(ctx context.Context, invoiceId string) (spec.Invoice, error)
 }
 
@@ -83,7 +83,7 @@ func (repo *repository) Create(ctx context.Context, createInvoiceReq spec.Create
 	return invoice, nil
 }
 
-func (repo *repository) List(ctx context.Context, invoiceFilter spec.InvoiceFilter) ([]spec.Invoice, error) {	
+func (repo *repository) List(ctx context.Context, invoiceFilter spec.InvoiceFilter) ([]spec.Invoice, error) {
 	var (
 		invoices = make([]spec.Invoice, 0)
 	)
@@ -157,7 +157,7 @@ func (repo *repository) Get(ctx context.Context, invoiceId string, userId int) (
 		err       error
 		arguments []interface{}
 	)
-	getInvoiceQuery := `SELECT FROM invoice WHERE id =$1 ` + invoiceId
+	getInvoiceQuery := `SELECT * FROM invoice WHERE id =$1 `
 	arguments = append(arguments, invoiceId)
 	if userId > 0 {
 		getInvoiceQuery += `AND user_id = $2`
@@ -177,21 +177,29 @@ func (repo *repository) Get(ctx context.Context, invoiceId string, userId int) (
 	return invoice, nil
 }
 
-func (repo *repository) Edit(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) error {
+func (repo *repository) Edit(ctx context.Context, updateInvoiceReq spec.UpdateInvoiceRequest) (spec.Invoice, error) {
 	var (
-		err    error
-		values []interface{}
+		err     error
+		invoice spec.Invoice
+		values  []interface{}
 	)
+
+	invoice, err = repo.Get(ctx, updateInvoiceReq.Id, 0)
+	if err != nil {
+		return invoice, err
+	}
 
 	updateQuery := `UPDATE invoice SET `
 
 	if updateInvoiceReq.Paid != -1 {
 		values = append(values, updateInvoiceReq.Paid)
+		invoice.Paid = updateInvoiceReq.Paid
 		updateQuery += ` paid = $` + strconv.Itoa(len(values)) + ` , `
 	}
 
 	if updateInvoiceReq.PaymentStatus != -1 {
 		values = append(values, updateInvoiceReq.PaymentStatus)
+		invoice.PaymentStatus = spec.PaymentStatus(updateInvoiceReq.PaymentStatus)
 		updateQuery += ` payment_status = $` + strconv.Itoa(len(values)) + ` , `
 	}
 
@@ -205,9 +213,10 @@ func (repo *repository) Edit(ctx context.Context, updateInvoiceReq spec.UpdateIn
 
 	_, err = repo.db.ExecContext(ctx, updateQuery, values...)
 	if err != nil {
-		return fmt.Errorf("failed to execute update invoice query %v", err.Error())
+		return invoice, fmt.Errorf("failed to execute update invoice query %v", err.Error())
 	}
-	return nil
+
+	return invoice, nil
 }
 
 func (repo *repository) Delete(ctx context.Context, invoiceId string) (spec.Invoice, error) {

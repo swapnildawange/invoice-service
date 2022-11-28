@@ -104,7 +104,7 @@ func (repo *repository) Create(ctx context.Context, createUserReq spec.CreateUse
 	}
 
 	if emailCount != 0 {
-		return userId, fmt.Errorf("email is already present")
+		return userId, svcerror.ErrEmailAlreadyPresent
 	}
 
 	insertIntoUsersQuery := `insert into users(first_name,last_name,role,created_at,updated_at) values ($1,$2,$3,$4,$5) RETURNING id`
@@ -137,7 +137,7 @@ func (repo *repository) List(ctx context.Context, listUserFilter spec.UserFilter
 		err   error
 		rows  *sql.Rows
 	)
-	listUsersQuery := `SELECT id,first_name,last_name,role,created_at,updated_at FROM users `
+	listUsersQuery := `SELECT users.id,auth.email,first_name,last_name,users.role,users.created_at,users.updated_at FROM users join auth on users.id = auth.user_id	`
 
 	listUsersQuery, filterValues := repo.queryUsersWithFilter(ctx, listUsersQuery, listUserFilter)
 
@@ -148,7 +148,7 @@ func (repo *repository) List(ctx context.Context, listUserFilter spec.UserFilter
 	defer rows.Close()
 	for rows.Next() {
 		var user spec.User
-		if err = rows.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
+		if err = rows.Scan(&user.Id, &user.Email, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt); err != nil {
 			if err == sql.ErrNoRows {
 				return users, nil
 			}

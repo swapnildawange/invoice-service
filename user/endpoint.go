@@ -92,14 +92,22 @@ func makeListUsers(logger log.Logger, bl BL) endpoint.Endpoint {
 
 		if JWTClaims.Role == int(spec.RoleUser) {
 			logger.Log("[debug]", "User is not authorized")
-			return nil, svcerror.ErrNotAuthorized
+			response, err = bl.GetUser(ctx, JWTClaims.Id)
+			if err != nil {
+				_, ok := err.(*svcerror.CustomErrString)
+				if ok {
+					return nil, err
+				}
+				return response, svcerror.ErrFailedToListUsers
+			}
+			return
 		}
 
 		req := request.(spec.UserFilter)
 		response, err = bl.ListUsers(ctx, req)
 		if err != nil {
 			logger.Log("[debug]", "failed to list users", "err", err)
-			_, ok := err.(svcerror.CustomError)
+			_, ok := err.(*svcerror.CustomErrString)
 			if ok {
 				return nil, err
 			}
@@ -135,7 +143,7 @@ func makeEditUser(logger log.Logger, bl BL) endpoint.Endpoint {
 		user, err := bl.EditUser(ctx, editUserReq)
 		if err != nil {
 			logger.Log("[debug]", "failed to edit user", "err", err)
-			_, ok := err.(svcerror.CustomError)
+			_, ok := err.(*svcerror.CustomErrString)
 			if ok {
 				return nil, err
 			}
@@ -172,7 +180,7 @@ func makeDeleteUser(logger log.Logger, bl BL) endpoint.Endpoint {
 		userId, err = bl.DeleteUser(ctx, deleteUserReq)
 		if err != nil {
 			logger.Log("[debug]", "failed to delete user", "err", err)
-			_, ok := err.(svcerror.CustomError)
+			_, ok := err.(*svcerror.CustomErrString)
 			if ok {
 				return nil, err
 			}
@@ -207,9 +215,13 @@ func makeGetUser(logger log.Logger, bl BL) endpoint.Endpoint {
 
 		userId := request.(int)
 		user, err = bl.GetUser(ctx, userId)
+		logger.Log("[debug]", "Failed to get user", "err", err)
 		if err != nil {
-			logger.Log("[debug]", "Failed to get user", "err", err)
-			return nil, err
+			_, ok := err.(*svcerror.CustomErrString)
+			if ok {
+				return nil, err
+			}
+			return response, svcerror.ErrFailedToListUsers
 		}
 		return user, nil
 	}

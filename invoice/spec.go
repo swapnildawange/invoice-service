@@ -5,5 +5,5 @@ const (
 	GetInvoiceRequestPath    = "/invoice/{id}"
 	ListInvoiceRequestPath   = "/invoice"
 	EditInvoiceRequestPath   = "/invoice/{id}"
-	DeleteInvoiceRequestPath = "/invoice"
+	DeleteInvoiceRequestPath = "/invoice/{id}"
 )

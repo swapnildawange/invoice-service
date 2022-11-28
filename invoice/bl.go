@@ -87,17 +87,12 @@ func (bl bl) UpdateInvoice(ctx context.Context, updateInvoiceReq spec.UpdateInvo
 		invoice spec.Invoice
 		err     error
 	)
-	err = bl.repo.Edit(ctx, updateInvoiceReq)
+	invoice, err = bl.repo.Edit(ctx, updateInvoiceReq)
 	if err != nil {
 		bl.logger.Log("[debug]", "Failed to update invoice", "err", err.Error())
 		return invoice, err
 	}
 
-	invoice, err = bl.repo.Get(ctx, updateInvoiceReq.Id, 0)
-	if err != nil {
-		bl.logger.Log("[debug]", "Failed to get updated invoice", "err", err.Error())
-		return invoice, err
-	}
 	bl.logger.Log("Successfully updated invoice")
 	return invoice, nil
 }

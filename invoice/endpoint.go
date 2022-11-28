@@ -28,7 +28,7 @@ func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 		GetInvoice:    makeGetInvoice(logger, bl),
 		ListInvoice:   makeListInvoice(logger, bl),
 		UpdateInvoice: makeUpdateInvoice(logger, bl),
-		DeleteInvoice: makeDeleteInvoiceEndpoint(logger, bl),
+		DeleteInvoice: makeDeleteInvoice(logger, bl),
 	}
 }
 
@@ -204,7 +204,7 @@ func makeUpdateInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	}
 }
 
-func makeDeleteInvoiceEndpoint(logger log.Logger, bl BL) endpoint.Endpoint {
+func makeDeleteInvoice(logger log.Logger, bl BL) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		defer func(begin time.Time) {
 			logger.Log(
