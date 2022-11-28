@@ -42,7 +42,7 @@ func (bl bl) CreateUser(ctx context.Context, createUserReq spec.CreateUserReques
 		return user, err
 	}
 
-	createUserReq.CreatedAt = time.Now()
+	createUserReq.CreatedAt = time.Now()	
 	createUserReq.UpdatedAt = time.Now()
 	createUserReq.Password = hashedPassword
 

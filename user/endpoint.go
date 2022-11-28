@@ -15,21 +15,21 @@ import (
 )
 
 type Endpoints struct {
-	CreateUser       endpoint.Endpoint
-	GetUser          endpoint.Endpoint
-	ListUsers        endpoint.Endpoint
-	LoginHandler     endpoint.Endpoint
-	DeleteUser       endpoint.Endpoint
-	EditUser         endpoint.Endpoint
+	CreateUser   endpoint.Endpoint
+	GetUser      endpoint.Endpoint
+	ListUsers    endpoint.Endpoint
+	LoginHandler endpoint.Endpoint
+	DeleteUser   endpoint.Endpoint
+	EditUser     endpoint.Endpoint
 }
 
 func NewEndpoints(logger log.Logger, bl BL) Endpoints {
 	return Endpoints{
-		CreateUser:       makeCreateUser(logger, bl),
-		GetUser:          makeGetUser(logger, bl),
-		ListUsers:        makeListUsers(logger, bl),
-		DeleteUser:       makeDeleteUser(logger, bl),
-		EditUser:         makeEditUser(logger, bl),
+		CreateUser: makeCreateUser(logger, bl),
+		GetUser:    makeGetUser(logger, bl),
+		ListUsers:  makeListUsers(logger, bl),
+		DeleteUser: makeDeleteUser(logger, bl),
+		EditUser:   makeEditUser(logger, bl),
 	}
 }
 
@@ -60,11 +60,10 @@ func makeCreateUser(logger log.Logger, bl BL) endpoint.Endpoint {
 		}
 
 		req = request.(spec.CreateUserRequest)
-
 		user, err = bl.CreateUser(ctx, req)
 		if err != nil {
 			logger.Log("[debug]", "failed to create user", "err", err)
-			_, ok := err.(svcerror.CustomError)
+			_, ok := err.(*svcerror.CustomErrString)
 			if ok {
 				return nil, err
 			}

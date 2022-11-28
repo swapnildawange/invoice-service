@@ -73,7 +73,6 @@ func (repo *repository) Get(ctx context.Context, userId int) (spec.User, error) 
 func (repo *repository) Create(ctx context.Context, createUserReq spec.CreateUserRequest) (int, error) {
 	var (
 		err        error
-		rows       *sql.Rows
 		row        *sql.Row
 		tx         *sql.Tx
 		userId     int
@@ -95,36 +94,31 @@ func (repo *repository) Create(ctx context.Context, createUserReq spec.CreateUse
 	// check if email is already present
 	checkEmailQuery := `SELECT COUNT(id) FROM auth WHERE email = $1`
 
-	rows, err = tx.QueryContext(ctx, checkEmailQuery, createUserReq.Email)
-	if err != nil {
+	row = tx.QueryRowContext(ctx, checkEmailQuery, createUserReq.Email)
+	if row.Err() != nil {
 		return userId, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		if err := rows.Scan(&emailCount); err != nil {
-			return userId, err
-		}
+	if err := row.Scan(&emailCount); err != nil {
+		return userId, err
 	}
 
 	if emailCount != 0 {
 		return userId, fmt.Errorf("email is already present")
 	}
 
-	insertIntoUsersQuery := `insert into "users"("first_name","last_name","role","created_at","updated_at")
-	values 
-	($1,$2,$3,$4,$5) RETURNING id`
+	insertIntoUsersQuery := `insert into users(first_name,last_name,role,created_at,updated_at) values ($1,$2,$3,$4,$5) RETURNING id`
 
 	row = tx.QueryRowContext(ctx, insertIntoUsersQuery, createUserReq.FirstName, createUserReq.LastName, createUserReq.Role, createUserReq.CreatedAt, createUserReq.UpdatedAt)
 	if row.Err() != nil {
-		return userId, err
+		return userId, row.Err()
 	}
 
 	if err = row.Scan(&userId); err != nil {
 		return userId, err
 	}
 
-	insertIntoAuthQuery := `insert into auth("user_id","email","password") values($1,$2,$3) ;`
+	insertIntoAuthQuery := `insert into auth(user_id,email,password) values($1,$2,$3);`
 	_, err = tx.ExecContext(ctx, insertIntoAuthQuery, userId, createUserReq.Email, createUserReq.Password)
 	if err != nil {
 		return userId, err
@@ -322,47 +316,3 @@ func (repo *repository) Edit(ctx context.Context, editUserReq spec.EditUserReque
 
 	return user, nil
 }
-
-// func SelectQueryBuilder() {
-// 	type SortOrder string
-
-// 	var ASC SortOrder = "ASC"
-// 	// var DESC SortOrder = "DESC"
-
-// 	type SelectQuery struct {
-// 		TableName string
-// 		Columns   []string
-// 		Where     map[string]interface{}
-// 		WhereLike map[string]interface{}
-// 		OrderBy   []string
-// 		SortOrder SortOrder
-// 		GroupBy   []string
-// 		Limit     int
-// 		Offset    int
-// 	}
-
-// 	query := SelectQuery{
-// 		TableName: "users",
-// 		Columns:   []string{"id", "first_name", "last_name", "created_at"},
-// 		Where: map[string]interface{}{
-// 			"id": 1,
-// 		},
-// 		WhereLike: map[string]interface{}{
-// 			"first_name": "s",
-// 		},
-// 		OrderBy:   []string{"id"},
-// 		SortOrder: ASC,
-// 		Limit:     10,
-// 		Offset:    1,
-// 	}
-// 	qu := fmt.Sprintf("SELECT %s FROM %s", strings.Join(query.Columns, ","), query.TableName)
-// 	// add where
-// 	for key, val := range query.Where {
-// 		qu += fmt.Sprintf("where %s = %v", key, val)
-// 	}
-
-// 	for key, val := range query.WhereLike {
-// 		qu += fmt.Sprintf(`where %s like '%"%v"%'`, key, val)
-// 	}
-
-// }
