@@ -39,7 +39,7 @@ func NewHTTPHandler(_ context.Context, logger log.Logger, r *mux.Router, endpoin
 	createUserHandler := httptransport.NewServer(
 		gokitjwt.NewParser(keys, jwt.SigningMethodHS256, security.GetJWTClaims)(endpoint.CreateUser),
 		decodeCreateUserRequest,
-		encodeResponse,	
+		encodeResponse,
 		options...,
 	)
 
@@ -104,7 +104,16 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	if err == svcerror.ErrInvalidLoginCreds || err == svcerror.ErrNotAuthorized {
 		w.WriteHeader(http.StatusUnauthorized)
 	} else {
-		w.WriteHeader(http.StatusInternalServerError)
+		_, ok := err.(*svcerror.CustomErrString)
+		if ok {
+			if err == svcerror.ErrBadRouting {
+				w.WriteHeader(http.StatusBadRequest)
+			} else {
+				w.WriteHeader(http.StatusOK)
+			}
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -230,7 +239,9 @@ func decodeDeleteUserReq(ctx context.Context, req *http.Request) (interface{}, e
 		}
 	}
 	deleteUserReq.Email = req.URL.Query().Get("email")
-
+	if deleteUserReq.Id == -1 && deleteUserReq.Email == "" {
+		return nil, svcerror.ErrBadRouting
+	}
 	return deleteUserReq, nil
 }
 

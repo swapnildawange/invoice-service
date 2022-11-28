@@ -21,7 +21,7 @@ var (
 	ErrInvalidRequest      = NewCustomError("invalid request")
 	ErrAlreadyExists       = NewCustomError("already exists")
 	ErrNotFound            = NewCustomError("not found")
-	ErrBadRouting          = NewCustomError("inconsistent mapping between route and handler (programmer error)")
+	ErrBadRouting          = NewCustomError("invalid request route ")
 	ErrNotAuthorized       = NewCustomError("user is not authorized to access the resources")
 	ErrLoginFailed         = NewCustomError("failed to login user")
 	ErrInvalidToken        = NewCustomError("invalid JWT token")
